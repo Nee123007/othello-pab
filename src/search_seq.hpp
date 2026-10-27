@@ -25,4 +25,19 @@ int search_b2_alphabeta(Board board,
                         bool use_ordering = true,
                         OrderMode order_mode = OrderMode::FULL);
 
+constexpr int INF = 1000000;
+
+// Internal recursive Negamax alpha-beta for sequential reference and parallel subtrees
+int negamax_b2_internal(Board board,
+                        int depth,
+                        int alpha,
+                        int beta,
+                        TranspositionTable* tt,
+                        uint32_t history[2][64],
+                        SearchStats& stats,
+                        bool use_tt,
+                        bool use_ordering,
+                        OrderMode order_mode,
+                        bool passed = false);
+
 } // namespace othello

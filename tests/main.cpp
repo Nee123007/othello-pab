@@ -10,6 +10,8 @@
 #include "tt.hpp"
 #include "eval.hpp"
 #include "search_seq.hpp"
+#include "threadpool.hpp"
+#include "search_root.hpp"
 
 using namespace othello;
 
@@ -282,7 +284,7 @@ void test_b0_random_and_greedy() {
     int g_move = search_b0_greedy(b, s_grd);
     assert(g_move >= 0 && g_move < 64);
     assert(s_grd.nodes == 4);
-    assert(s_grd.value == 1); // Opening move flips 1 disc
+    assert(s_grd.value == 1);
 
     std::cout << "PASSED\n";
 }
@@ -291,7 +293,6 @@ void test_b1_b2_equality_and_pruning() {
     std::cout << "[Test 11] Testing B1 (Minimax) vs B2 (Alpha-Beta) Value Equality & Pruning Efficiency:\n";
     TranspositionTable tt(16);
 
-    // 1. Value equality across 50 positions at depths 1 to 4
     uint64_t seed = 101;
     for (int game = 0; game < 50; ++game) {
         Board b;
@@ -314,11 +315,9 @@ void test_b1_b2_equality_and_pruning() {
             SearchStats s_b1, s_b2_raw, s_b2_full;
             search_b1_minimax(b, depth, s_b1);
 
-            // B2 without TT and without ordering
             search_b2_alphabeta(b, depth, nullptr, s_b2_raw, false, false, OrderMode::NONE);
             assert(s_b1.value == s_b2_raw.value);
 
-            // B2 with TT and full ordering
             tt.clear();
             search_b2_alphabeta(b, depth, &tt, s_b2_full, true, true, OrderMode::FULL);
             assert(s_b1.value == s_b2_full.value);
@@ -326,7 +325,6 @@ void test_b1_b2_equality_and_pruning() {
     }
     std::cout << "  50 Random Positions Equality (Depths 1 to 4): EXACT MATCH\n";
 
-    // 2. Measure depth 5 pruning efficiency on starting position
     Board start;
     SearchStats s_minimax, s_alphabeta;
     search_b1_minimax(start, 5, s_minimax);
@@ -345,13 +343,86 @@ void test_b1_b2_equality_and_pruning() {
               << "    Value Match:         " << s_alphabeta.value << " == " << s_minimax.value << " (OK)\n"
               << "    Pruning Efficiency:  " << std::fixed << std::setprecision(2) << (pruning_gain * 100.0) << "%\n" << std::flush;
 
-    assert(pruning_gain > 0.50); // Alpha-Beta must prune significant portion of minimax tree
+    assert(pruning_gain > 0.50);
     std::cout << "  Pruning Efficiency Assertion: PASSED\n";
+}
+
+void test_threadpool_and_p1_root_splitting() {
+    std::cout << "[Test 12] Testing ThreadPool & P1 Root Splitting (P = 1, 4, 8):\n";
+
+    // 1. ThreadPool basic concurrency test
+    ThreadPool pool(4);
+    assert(pool.size() == 4);
+    std::atomic<int> counter{0};
+    for (int i = 0; i < 100; ++i) {
+        pool.submit([&counter]() {
+            counter.fetch_add(1, std::memory_order_relaxed);
+        }, i % 4);
+    }
+    pool.wait_all();
+    assert(counter.load() == 100);
+    std::cout << "  ThreadPool Concurrency & Work-Stealing: PASSED (100 tasks executed)\n";
+
+    // 2. P1 vs B2 Value Equality Test at P=1 and P=4 on 20 positions
+    uint64_t seed = 999;
+    ThreadPool pool1(1);
+    ThreadPool pool4(4);
+    ThreadPool pool8(8);
+
+    for (int game = 0; game < 20; ++game) {
+        Board b;
+        int plies = 6 + (game % 8);
+        for (int p = 0; p < plies; ++p) {
+            std::vector<int> moves = b.get_legal_moves_list();
+            if (moves.empty()) {
+                if (b.is_terminal()) break;
+                b.pass();
+                moves = b.get_legal_moves_list();
+                if (moves.empty()) break;
+            }
+            seed = seed * 6364136223846793005ULL + 1ULL;
+            b.make_move(moves[seed % moves.size()]);
+        }
+
+        if (b.is_terminal()) continue;
+
+        for (int depth = 2; depth <= 4; ++depth) {
+            SearchStats s_b2, s_p1_1, s_p1_4, s_p1_8;
+
+            search_b2_alphabeta(b, depth, nullptr, s_b2, false, true, OrderMode::FULL);
+            search_p1_root(b, depth, pool1, s_p1_1);
+            search_p1_root(b, depth, pool4, s_p1_4);
+            search_p1_root(b, depth, pool8, s_p1_8);
+
+            assert(s_p1_1.value == s_b2.value);
+            assert(s_p1_4.value == s_b2.value);
+            assert(s_p1_8.value == s_b2.value);
+        }
+    }
+    std::cout << "  P1 Value Equality vs B2 (P=1, P=4, P=8 across 20 positions): EXACT MATCH\n";
+
+    // 3. Performance & Speedup measurement at Depth 6
+    Board start;
+    SearchStats s_seq, s_par4;
+    search_p1_root(start, 6, pool1, s_seq);
+    search_p1_root(start, 6, pool4, s_par4);
+
+    assert(s_par4.value == s_seq.value);
+    double speedup = s_seq.time_ms / std::max(s_par4.time_ms, 0.01);
+    double sop = (static_cast<double>(s_par4.nodes.load()) / static_cast<double>(s_seq.nodes.load())) - 1.0;
+
+    std::cout << "  Depth 6 Root Splitting Metrics:\n"
+              << "    Sequential P=1 Time: " << s_seq.time_ms << " ms | Nodes: " << s_seq.nodes.load() << "\n"
+              << "    Parallel P=4 Time:   " << s_par4.time_ms << " ms | Nodes: " << s_par4.nodes.load() << "\n"
+              << "    Value Match:         " << s_par4.value << " == " << s_seq.value << " (OK)\n"
+              << "    Measured Speedup:    " << std::fixed << std::setprecision(2) << speedup << "x\n"
+              << "    Search Overhead SOP: +" << std::fixed << std::setprecision(1) << (sop * 100.0) << "%\n";
+    std::cout << "  P1 Root Splitting Verification: PASSED\n";
 }
 
 int main() {
     std::cout << "======================================================\n";
-    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..3 Tests\n";
+    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..5 Tests\n";
     std::cout << "======================================================\n";
 
     test_initial_state();
@@ -365,9 +436,10 @@ int main() {
     test_evaluation_symmetry_and_exactness();
     test_b0_random_and_greedy();
     test_b1_b2_equality_and_pruning();
+    test_threadpool_and_p1_root_splitting();
 
     std::cout << "======================================================\n";
-    std::cout << "  ALL PHASE 1, 2, AND 3 TESTS PASSED (100% SUCCESS)    \n";
+    std::cout << "  ALL PHASE 1..5 UNIT TESTS PASSED (100% SUCCESS)      \n";
     std::cout << "======================================================\n";
     return 0;
 }

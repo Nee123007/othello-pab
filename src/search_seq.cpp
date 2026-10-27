@@ -9,8 +9,6 @@ namespace othello {
 
 namespace {
 
-constexpr int INF = 1000000;
-
 // Internal recursive Negamax for B1 (Minimax without pruning)
 int negamax_b1_internal(Board board, int depth, SearchStats& stats, bool passed) {
     stats.nodes.fetch_add(1, std::memory_order_relaxed);
@@ -42,7 +40,9 @@ int negamax_b1_internal(Board board, int depth, SearchStats& stats, bool passed)
     return max_val;
 }
 
-// Internal recursive Negamax for B2 (Alpha-Beta pruning)
+} // anonymous namespace
+
+// Recursive Negamax for B2 (Alpha-Beta pruning) and parallel subtrees
 int negamax_b2_internal(Board board,
                         int depth,
                         int alpha,
@@ -117,8 +117,6 @@ int negamax_b2_internal(Board board,
 
     return best_val;
 }
-
-} // anonymous namespace
 
 int search_b0_random(const Board& board, SearchStats& stats, uint64_t seed) {
     auto t0 = std::chrono::high_resolution_clock::now();
