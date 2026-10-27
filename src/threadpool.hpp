@@ -22,6 +22,9 @@ public:
     // Submit a task to a preferred worker queue
     void submit(std::function<void()> task, size_t preferred_worker = 0);
 
+    // Help execute one task (from own queue or stolen from others). Returns true if a task was run.
+    bool help_work(size_t worker_id = 0);
+
     // Wait until all submitted tasks complete; calling thread helps execute tasks
     void wait_all();
 

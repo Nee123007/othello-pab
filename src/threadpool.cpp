@@ -32,7 +32,7 @@ void ThreadPool::submit(std::function<void()> task, size_t preferred_worker) {
         std::lock_guard<std::mutex> lock(queues_[target].mtx);
         queues_[target].tasks.push_back(std::move(task));
     }
-    cv_work_.notify_one();
+    cv_work_.notify_all();
 }
 
 bool ThreadPool::try_steal_and_execute(size_t thief_id) {
@@ -88,10 +88,15 @@ void ThreadPool::worker_loop(size_t worker_id) {
     while (try_steal_and_execute(worker_id)) {}
 }
 
+bool ThreadPool::help_work(size_t worker_id) {
+    if (queues_.empty()) return false;
+    return try_steal_and_execute(worker_id % queues_.size());
+}
+
 void ThreadPool::wait_all() {
     // Calling thread helps execute pending tasks while waiting
     while (pending_tasks_.load(std::memory_order_acquire) > 0) {
-        if (!try_steal_and_execute(0)) {
+        if (!help_work(0)) {
             std::unique_lock<std::mutex> lock(cv_mtx_);
             if (pending_tasks_.load(std::memory_order_acquire) == 0) break;
             cv_done_.wait_for(lock, std::chrono::microseconds(100), [this]() {

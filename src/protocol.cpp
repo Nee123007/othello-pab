@@ -79,6 +79,11 @@ void execute_bench(const std::string& filepath, const std::string& algo, int dep
 
     std::cout << "algo,threads,depth,position_id,value,bestmove,nodes,time_ms\n" << std::flush;
 
+    std::unique_ptr<ThreadPool> pool;
+    if (algo == "p1" || algo == "p2" || algo == "p3") {
+        pool = std::make_unique<ThreadPool>(threads);
+    }
+
     std::string line;
     int pos_id = 0;
 
@@ -131,11 +136,10 @@ void execute_bench(const std::string& filepath, const std::string& algo, int dep
         } else if (algo == "b2") {
             tt.clear();
             move = search_b2_alphabeta(b, depth, &tt, stats, true, true, OrderMode::FULL);
-        } else {
-            ThreadPool pool(threads);
-            if (algo == "p1") move = search_p1_root(b, depth, pool, stats);
-            else if (algo == "p2") move = search_p2_pvs(b, depth, pool, stats);
-            else move = search_p3_ybwc(b, depth, pool, stats);
+        } else if (pool) {
+            if (algo == "p1") move = search_p1_root(b, depth, *pool, stats);
+            else if (algo == "p2") move = search_p2_pvs(b, depth, *pool, stats);
+            else move = search_p3_ybwc(b, depth, *pool, stats);
         }
 
         std::string move_coord = Board::square_to_coord(move);

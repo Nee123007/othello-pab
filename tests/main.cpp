@@ -12,6 +12,7 @@
 #include "search_seq.hpp"
 #include "threadpool.hpp"
 #include "search_root.hpp"
+#include "search_pvs.hpp"
 
 using namespace othello;
 
@@ -420,9 +421,69 @@ void test_threadpool_and_p1_root_splitting() {
     std::cout << "  P1 Root Splitting Verification: PASSED\n";
 }
 
+void test_p2_pvs() {
+    std::cout << "[Test 13] Testing P2 Principal Variation Splitting (PVS) (P = 1, 2, 4):\n";
+
+    ThreadPool pool1(1);
+    ThreadPool pool2(2);
+    ThreadPool pool4(4);
+
+    // 1. Strict Value Equality against B2 across 50 random game positions at Depths 2, 3, 4
+    uint64_t seed = 777;
+    for (int game = 0; game < 50; ++game) {
+        Board b;
+        int plies = 6 + (game % 10);
+        for (int p = 0; p < plies; ++p) {
+            std::vector<int> moves = b.get_legal_moves_list();
+            if (moves.empty()) {
+                if (b.is_terminal()) break;
+                b.pass();
+                moves = b.get_legal_moves_list();
+                if (moves.empty()) break;
+            }
+            seed = seed * 6364136223846793005ULL + 1ULL;
+            b.make_move(moves[seed % moves.size()]);
+        }
+
+        if (b.is_terminal()) continue;
+
+        for (int depth = 2; depth <= 4; ++depth) {
+            SearchStats s_b2, s_p2_1, s_p2_2, s_p2_4;
+
+            search_b2_alphabeta(b, depth, nullptr, s_b2, false, true, OrderMode::FULL);
+            search_p2_pvs(b, depth, pool1, s_p2_1, nullptr, false, true, OrderMode::FULL);
+            search_p2_pvs(b, depth, pool2, s_p2_2, nullptr, false, true, OrderMode::FULL);
+            search_p2_pvs(b, depth, pool4, s_p2_4, nullptr, false, true, OrderMode::FULL);
+
+            assert(s_p2_1.value == s_b2.value);
+            assert(s_p2_2.value == s_b2.value);
+            assert(s_p2_4.value == s_b2.value);
+        }
+    }
+    std::cout << "  P2 Value Equality vs B2 (P=1, P=2, P=4 across 50 positions): EXACT MATCH\n";
+
+    // 2. Performance & Speedup measurement at Depth 6
+    Board start;
+    SearchStats s_seq, s_par4;
+    search_p2_pvs(start, 6, pool1, s_seq, nullptr, false, true, OrderMode::FULL);
+    search_p2_pvs(start, 6, pool4, s_par4, nullptr, false, true, OrderMode::FULL);
+
+    assert(s_par4.value == s_seq.value);
+    double speedup = s_seq.time_ms / std::max(s_par4.time_ms, 0.01);
+    double sop = (static_cast<double>(s_par4.nodes.load()) / static_cast<double>(s_seq.nodes.load())) - 1.0;
+
+    std::cout << "  Depth 6 P2 PVS Metrics:\n"
+              << "    Sequential P=1 Time: " << s_seq.time_ms << " ms | Nodes: " << s_seq.nodes.load() << "\n"
+              << "    Parallel P=4 Time:   " << s_par4.time_ms << " ms | Nodes: " << s_par4.nodes.load() << "\n"
+              << "    Value Match:         " << s_par4.value << " == " << s_seq.value << " (OK)\n"
+              << "    Measured Speedup:    " << std::fixed << std::setprecision(2) << speedup << "x\n"
+              << "    Search Overhead SOP: +" << std::fixed << std::setprecision(1) << (sop * 100.0) << "%\n";
+    std::cout << "  P2 PVS Verification: PASSED\n";
+}
+
 int main() {
     std::cout << "======================================================\n";
-    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..5 Tests\n";
+    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..6 Tests\n";
     std::cout << "======================================================\n";
 
     test_initial_state();
@@ -437,9 +498,10 @@ int main() {
     test_b0_random_and_greedy();
     test_b1_b2_equality_and_pruning();
     test_threadpool_and_p1_root_splitting();
+    test_p2_pvs();
 
     std::cout << "======================================================\n";
-    std::cout << "  ALL PHASE 1..5 UNIT TESTS PASSED (100% SUCCESS)      \n";
+    std::cout << "  ALL PHASE 1..6 UNIT TESTS PASSED (100% SUCCESS)      \n";
     std::cout << "======================================================\n";
     return 0;
 }
