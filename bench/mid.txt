@@ -1,0 +1,32 @@
+# Parallel Othello Benchmark Positions: mid (ply 25, seed 42)
+# pos_id,board_string,turn
+mid_001,........O....X..XOXXX...XXOXXXX.X.XOOXX...OXXXX..OX.X......X....,w
+mid_002,.O..X....OOXO...XOXO.O...XXXO...XXXOOO...OO.OX...O..O......XO...,w
+mid_003,....OX..O...XX...OXXXX....OXOXOOOOOOOXX.XXOO.XX.................,w
+mid_004,X.....O..X...O....X.OO..XXXOOOO.XXOXXO..XO..XOOO.O..OX..........,w
+mid_005,..XXXX....XXOX..XXXOOXXXXXOXOO...OXOOO..O...O...................,w
+mid_006,...XO......XOO.O..XXOXO...XOOX..XOXXXO..XXXX.XO.X.......X.......,w
+mid_007,..OOOO.....XO.OX..XXXOX..X.XXXOX...XXXO....XXXO....X.X..........,w
+mid_008,...........X.O....X.XOO..X.OXXXX..XOXOXO...XOXO....OXOOX...X..O.,w
+mid_009,........OOO.XO..XXO.O....XOOXO..XXXOOXXX.X.XXX......XXO.........,w
+mid_010,...O......OOOXX....O.X.....OXXO....XXXXO..XOOX...XXXXX..X.X..X..,w
+mid_011,.........X.......OXX.X....OXXXOO.OOOOX...OOXXOOO.OXX....XXX.....,w
+mid_012,..OOO.....OOX...OOOOXX..OOXXO.X.OXXOO...O.X.....OXX.......X.....,w
+mid_013,....O.......O......XOXX....XOX.X.OOOOOXO.OOOOX....O.XX....OX.XO.,w
+mid_014,..O......X.OXX.O..XXOXX..XXXXOXX.OXXXXXX...OXXX.................,w
+mid_015,....O...X.XXXXX.XXO.XX..XOXXX....OOXOX..OO.OXXX.O...............,w
+mid_016,....O.....OOOX......O.X..XXXOOX..XXOOXXX.XOXX.XO..OOX...........,w
+mid_017,...........OOOX...OOOX....XXXXO....XXXXO..OOX.XO.O.OO..X....XO..,w
+mid_018,.O..O.....O.O.....XOO.O.OOXXXXX.XXXXXXOO..X.XXO....X.O..........,w
+mid_019,..X.......X...OX.OOOOOX...XOOXO.OOXXX....OXXXXX.O.X..X..........,w
+mid_020,.....X......X....OXXOO...XXXXO..XXXXXX...XOXX...XOOO.....OOX....,w
+mid_021,..OO.X.OX..OXXO..X.XOOOO.XXXO.X..O.OO.XO..OOOX..................,w
+mid_022,...X.X...OXXX....XXXX......XOX...OOXOXX....XOO....XOOOO..X.X....,w
+mid_023,.O......OOXXX....OXX..O...XXXO...XXXX.....XOOOOO..XX..X...X...X.,w
+mid_024,..X......XO.O.X.X.OOOO...X.OOOO.OOXOOOO..X.XO.O.....XO.O........,w
+mid_025,...X.......XX....O..XXO...OXOX....XOOXX..OXXOXXX..O.OXO....O..O.,w
+mid_026,..........O.X.X....OXX.X.XXXXOX...XOOX...XXXXOX.....XOX.....XO.X,w
+mid_027,....O.....OXO....XXXX..O.XXXOXOX...XOO.....XXOOO...O.XO...O..O..,w
+mid_028,....X...X..OOOO..X.XX...XOXOX...OOOOXX..X.XOX....XXXX.......X...,w
+mid_029,..........OX.X....OOXX...XOXOX....OXXXX.OOOXOO..OOXO....O..O....,w
+mid_030,..........X.......XO.X....OXXOOO.OXOXX.X.OXOXX....XXXXX..OX...X.,w
