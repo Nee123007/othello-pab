@@ -1,0 +1,5 @@
+contestant,games,wins,draws,losses,win_rate_pct,mean_disc_diff,ci_95,ci_lower,ci_upper
+P3_YBWC_P8,12,10,0,2,83.33,25.67,16.43,9.24,42.10
+B2_AlphaBeta,12,10,0,2,83.33,34.42,14.71,19.71,49.13
+B0_Greedy,12,4,0,8,33.33,-20.25,20.86,-41.11,0.61
+B0_Random,12,0,0,12,0.00,-39.83,8.92,-48.75,-30.92

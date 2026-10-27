@@ -35,6 +35,18 @@ Board parse_board_string(const std::string& board_str, char side_char) {
     return Board(me, opp, turn);
 }
 
+namespace {
+
+std::unique_ptr<ThreadPool> s_pool;
+ThreadPool& get_pool(size_t threads) {
+    if (!s_pool || s_pool->size() != threads) {
+        s_pool = std::make_unique<ThreadPool>(threads);
+    }
+    return *s_pool;
+}
+
+} // anonymous namespace
+
 void execute_go(Board& current_board, TranspositionTable& tt, int depth, const std::string& algo, int threads, OrderMode order_mode) {
     SearchStats stats;
     int move = -1;
@@ -48,7 +60,8 @@ void execute_go(Board& current_board, TranspositionTable& tt, int depth, const s
     } else if (algo == "b2" || algo == "alphabeta") {
         move = search_b2_alphabeta(current_board, depth, &tt, stats, true, true, order_mode);
     } else if (algo == "p1" || algo == "p2" || algo == "p3") {
-        ThreadPool pool(threads);
+        ThreadPool& pool = get_pool(threads);
+        pool.reset_stats();
         if (algo == "p1") {
             move = search_p1_root(current_board, depth, pool, stats, order_mode);
         } else if (algo == "p2") {
@@ -83,9 +96,9 @@ void execute_bench(const std::string& filepath, const std::string& algo, int dep
 
     std::cout << "algo,threads,depth,position_id,value,bestmove,nodes,time_ms,splits,steals,cancels,idle_us,order\n" << std::flush;
 
-    std::unique_ptr<ThreadPool> pool;
+    ThreadPool* pool = nullptr;
     if (algo == "p1" || algo == "p2" || algo == "p3") {
-        pool = std::make_unique<ThreadPool>(threads);
+        pool = &get_pool(threads);
     }
 
     std::string line;
