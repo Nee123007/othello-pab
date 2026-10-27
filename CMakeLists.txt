@@ -58,5 +58,10 @@ target_link_libraries(othello PRIVATE othello_core)
 add_executable(tests tests/main.cpp)
 target_link_libraries(tests PRIVATE othello_core)
 
+# Target 3: test_equality (200-position correctness verification suite)
+add_executable(test_equality tests/test_equality.cpp)
+target_link_libraries(test_equality PRIVATE othello_core)
+
 enable_testing()
-add_test(NAME AllTests COMMAND tests)
+add_test(NAME UnitTests COMMAND tests)
+add_test(NAME EqualityTests COMMAND test_equality)
