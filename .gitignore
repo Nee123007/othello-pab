@@ -1,0 +1,24 @@
+# Build directories
+build/
+bin/
+*.exe
+*.o
+*.obj
+*.a
+*.lib
+*.dll
+
+# IDE / Editor
+.vscode/
+.vs/
+*.user
+
+# Python cache & virtual environment
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Generated Benchmark CSVs
+results/*.csv
