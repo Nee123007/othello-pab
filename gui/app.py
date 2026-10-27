@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """
 Interactive Othello Graphical User Interface (Pygame).
-Decoupled frontend communicating exclusively with the C++ Othello Engine
-via standard text protocol (stdin/stdout).
+Decoupled frontend communicating with the C++ Othello Engine via text protocol.
 
 Features:
+- Modes:
+  1. Human vs AI (Play as Black or White)
+  2. AI vs AI (Spectator / Auto Battle with visual delay)
+  3. AI vs AI (Step-by-Step Analysis)
 - Board drawing with disc rendering, coordinates, and legal move indicators.
 - Side panel with controls:
-  - Algorithm selector (B0, B1, B2, P1, P2, P3)
+  - Algorithm selector (B0 Random, B0 Greedy, B1, B2, P1, P2, P3)
   - Thread count (1, 2, 4, 8)
   - Search depth (1 to 10)
-  - Player side (Black / White)
-  - Mode: Automatic Play vs Step-by-Step Analysis
+  - Mode toggle: Human vs AI, AI vs AI (Auto), AI vs AI (Step)
 - Real-time engine telemetry:
-  - Evaluated Nodes, Search Time (ms), Score (centi-discs), Speedup
-- New Game, Pass, and Step Advance buttons
+  - Evaluated Nodes, Search Time (ms), Score (cp), Best Move
+- New Game, Undo, and Step Advance buttons
 """
 
 import sys
@@ -200,6 +202,16 @@ class OthelloGame:
     def is_game_over(self):
         return len(self.get_legal_moves(1)) == 0 and len(self.get_legal_moves(-1)) == 0
 
+    def to_board_string(self):
+        s = []
+        for r in range(8):
+            for c in range(8):
+                if self.board[r][c] == 1: s.append('X')
+                elif self.board[r][c] == -1: s.append('O')
+                else: s.append('.')
+        side_ch = 'b' if self.turn == 1 else 'w'
+        return "".join(s), side_ch
+
 def square_to_coord(sq):
     r = sq // 8
     c = sq % 8
@@ -228,23 +240,26 @@ def main():
     game = OthelloGame()
 
     # Settings State
-    algos = ["b2", "p1", "p2", "p3", "b0_greedy", "b0_random", "b1"]
+    algos = ["b2", "p3", "p2", "p1", "b0_greedy", "b0_random", "b1"]
     algo_idx = 0  # Default B2
     threads_list = [1, 2, 4, 8]
     threads_idx = 2  # Default 4 threads
     depth = 6
-    human_side = 1  # 1: Black (human first), -1: White (engine first)
-    step_by_step = False
+
+    # Game Modes: 0: Human vs AI (Black), 1: Human vs AI (White), 2: AI vs AI (Auto), 3: AI vs AI (Step)
+    modes = ["Human (Black) vs AI", "Human (White) vs AI", "AI vs AI (Auto Spectator)", "AI vs AI (Step Mode)"]
+    mode_idx = 0
 
     # Engine Telemetry
     engine_thinking = False
     pending_best_move = None
+    last_move_time = pygame.time.get_ticks()
     last_stats = {
         "move": "---",
         "value": 0,
         "nodes": 0,
         "time_ms": 0.0,
-        "speedup": "1.00x"
+        "player": "---"
     }
 
     def start_engine_search():
@@ -254,10 +269,14 @@ def main():
         engine_thinking = True
         algo = algos[algo_idx]
         threads = threads_list[threads_idx]
+        b_str, side_ch = game.to_board_string()
+        engine.send(f"setboard {b_str} {side_ch}")
         engine.send(f"go depth {depth} algo {algo} threads {threads}")
 
     running = True
     while running:
+        current_time = pygame.time.get_ticks()
+
         # Check engine responses
         while True:
             msg = engine.get_message()
@@ -265,7 +284,6 @@ def main():
                 break
             if msg.startswith("bestmove"):
                 parts = msg.split()
-                # format: bestmove <move> value <val> nodes <n> time_ms <ms>
                 move_str = parts[1] if len(parts) > 1 else ""
                 val = int(parts[3]) if len(parts) > 3 else 0
                 nodes = int(parts[5]) if len(parts) > 5 else 0
@@ -278,34 +296,35 @@ def main():
                 last_stats["value"] = val
                 last_stats["nodes"] = nodes
                 last_stats["time_ms"] = time_ms
-
-                # Rough speedup indication
-                if time_ms > 0:
-                    last_stats["speedup"] = f"{threads_list[threads_idx] * 0.75:.2f}x"
-                else:
-                    last_stats["speedup"] = "1.00x"
+                last_stats["player"] = "Black" if game.turn == 1 else "White"
 
                 engine_thinking = False
+                last_move_time = current_time
 
-                if step_by_step:
+                if mode_idx == 3:  # AI vs AI (Step)
                     pending_best_move = (r, c)
                 else:
-                    if r >= 0 and c >= 0 and game.make_move(r, c):
-                        engine.send(f"play {move_str}")
+                    if r >= 0 and c >= 0:
+                        game.make_move(r, c)
                     else:
-                        # Pass if no move
                         game.pass_turn()
-                        engine.send("play pass")
 
-        # Automatic engine trigger
-        if not engine_thinking and not game.is_game_over() and pending_best_move is None:
-            if game.turn != human_side:
-                # If engine has legal moves, trigger search; else pass
-                if game.get_legal_moves(game.turn):
-                    start_engine_search()
-                else:
-                    game.pass_turn()
-                    engine.send("play pass")
+        # Determine if it's AI's turn
+        is_ai_turn = False
+        if not game.is_game_over() and not engine_thinking:
+            if mode_idx == 0 and game.turn == -1:  # Human is Black, AI is White
+                is_ai_turn = True
+            elif mode_idx == 1 and game.turn == 1:  # Human is White, AI is Black
+                is_ai_turn = True
+            elif mode_idx == 2:  # AI vs AI (Auto)
+                if current_time - last_move_time >= 350:  # 350ms delay between plies
+                    is_ai_turn = True
+
+        if is_ai_turn and pending_best_move is None:
+            if game.get_legal_moves(game.turn):
+                start_engine_search()
+            else:
+                game.pass_turn()
 
         # Handle Events
         for event in pygame.event.get():
@@ -314,56 +333,55 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
 
-                # Check click on board
+                # Check click on board (only in Human modes)
                 if (BOARD_OFFSET_X <= mx < BOARD_OFFSET_X + BOARD_WIDTH and
                     BOARD_OFFSET_Y <= my < BOARD_OFFSET_Y + BOARD_HEIGHT):
                     col = (mx - BOARD_OFFSET_X) // CELL_SIZE
                     row = (my - BOARD_OFFSET_Y) // CELL_SIZE
 
-                    if game.turn == human_side and not engine_thinking:
+                    can_human_move = (mode_idx == 0 and game.turn == 1) or (mode_idx == 1 and game.turn == -1)
+                    if can_human_move and not engine_thinking:
                         if game.make_move(row, col):
-                            coord = square_to_coord(row * 8 + col)
-                            engine.send(f"play {coord}")
+                            last_move_time = current_time
 
                 # Check Side Panel Button Clicks
                 px = BOARD_OFFSET_X * 2 + BOARD_WIDTH
                 py = BOARD_OFFSET_Y
 
-                # Algorithm switch button
+                # Game Mode switch button
                 if px <= mx <= px + 280 and py + 45 <= my <= py + 75:
+                    mode_idx = (mode_idx + 1) % len(modes)
+                    pending_best_move = None
+                    last_move_time = current_time
+
+                # Algorithm switch button
+                if px <= mx <= px + 280 and py + 85 <= my <= py + 115:
                     algo_idx = (algo_idx + 1) % len(algos)
 
                 # Threads switch button
-                if px <= mx <= px + 280 and py + 85 <= my <= py + 115:
+                if px <= mx <= px + 280 and py + 125 <= my <= py + 155:
                     threads_idx = (threads_idx + 1) % len(threads_list)
 
                 # Depth - / +
-                if px + 120 <= mx <= px + 150 and py + 125 <= my <= py + 155:
+                if px + 120 <= mx <= px + 150 and py + 165 <= my <= py + 195:
                     depth = max(1, depth - 1)
-                if px + 160 <= mx <= px + 190 and py + 125 <= my <= py + 155:
+                if px + 160 <= mx <= px + 190 and py + 165 <= my <= py + 195:
                     depth = min(10, depth + 1)
 
-                # Human Side toggle
-                if px <= mx <= px + 280 and py + 165 <= my <= py + 195:
-                    human_side = -human_side
-                    game.reset()
-                    engine.send("new")
-
-                # Step-by-Step toggle
-                if px <= mx <= px + 280 and py + 205 <= my <= py + 235:
-                    step_by_step = not step_by_step
-
-                # Step Advance button
-                if step_by_step and pending_best_move is not None:
-                    if px <= mx <= px + 280 and py + 245 <= my <= py + 275:
-                        r, c = pending_best_move
-                        if r >= 0 and c >= 0 and game.make_move(r, c):
-                            coord = square_to_coord(r * 8 + c)
-                            engine.send(f"play {coord}")
-                        else:
-                            game.pass_turn()
-                            engine.send("play pass")
-                        pending_best_move = None
+                # Step Advance button (in Step Mode)
+                if mode_idx == 3:
+                    if px <= mx <= px + 280 and py + 210 <= my <= py + 245:
+                        if pending_best_move is not None:
+                            r, c = pending_best_move
+                            if r >= 0 and c >= 0: game.make_move(r, c)
+                            else: game.pass_turn()
+                            pending_best_move = None
+                            last_move_time = current_time
+                        elif not engine_thinking and not game.is_game_over():
+                            if game.get_legal_moves(game.turn):
+                                start_engine_search()
+                            else:
+                                game.pass_turn()
 
                 # New Game button
                 if px <= mx <= px + 135 and py + 520 <= my <= py + 555:
@@ -371,23 +389,16 @@ def main():
                     engine.send("new")
                     pending_best_move = None
                     engine_thinking = False
+                    last_move_time = current_time
 
                 # Undo button
                 if px + 145 <= mx <= px + 280 and py + 520 <= my <= py + 555:
                     if not engine_thinking:
-                        # Undo both engine and human move
                         game.undo()
-                        game.undo()
-                        # Re-sync engine board
-                        b_str = []
-                        for r in range(8):
-                            for c in range(8):
-                                if game.board[r][c] == 1: b_str.append('X')
-                                elif game.board[r][c] == -1: b_str.append('O')
-                                else: b_str.append('.')
-                        side_ch = 'b' if game.turn == 1 else 'w'
-                        engine.send(f"setboard {''.join(b_str)} {side_ch}")
+                        if mode_idx in [0, 1]:  # In human mode, undo 2 moves
+                            game.undo()
                         pending_best_move = None
+                        last_move_time = current_time
 
         # --- DRAWING ---
         screen.fill(COLOR_BG)
@@ -397,7 +408,7 @@ def main():
         pygame.draw.rect(screen, COLOR_BOARD, board_rect)
         pygame.draw.rect(screen, COLOR_PANEL_BORDER, board_rect, 3)
 
-        # Draw Grid lines and coordinates
+        # Grid lines
         for i in range(9):
             x = BOARD_OFFSET_X + i * CELL_SIZE
             y = BOARD_OFFSET_Y + i * CELL_SIZE
@@ -422,12 +433,12 @@ def main():
                     color = COLOR_BLACK_DISC if disc == 1 else COLOR_WHITE_DISC
                     pygame.draw.circle(screen, (30, 30, 30), (cx + 2, cy + 2), radius) # Drop shadow
                     pygame.draw.circle(screen, color, (cx, cy), radius)
-                    # Subtle 3D highlight
                     hl_color = (60, 60, 60) if disc == 1 else (255, 255, 255)
                     pygame.draw.circle(screen, hl_color, (cx - 4, cy - 4), radius // 3)
 
-        # Highlight Legal Moves
-        if game.turn == human_side and not engine_thinking:
+        # Highlight Legal Moves for Human
+        can_human_act = (mode_idx == 0 and game.turn == 1) or (mode_idx == 1 and game.turn == -1)
+        if can_human_act and not engine_thinking:
             for r, c in game.get_legal_moves(game.turn):
                 cx = BOARD_OFFSET_X + c * CELL_SIZE + CELL_SIZE // 2
                 cy = BOARD_OFFSET_Y + r * CELL_SIZE + CELL_SIZE // 2
@@ -435,7 +446,7 @@ def main():
                 pygame.draw.circle(s, COLOR_LEGAL_MOVE, (CELL_SIZE // 2, CELL_SIZE // 2), 9)
                 screen.blit(s, (BOARD_OFFSET_X + c * CELL_SIZE, BOARD_OFFSET_Y + r * CELL_SIZE))
 
-        # Highlight Candidate Move in Step-by-Step Mode
+        # Highlight Candidate Move in Step Mode
         if pending_best_move is not None:
             pr, pc = pending_best_move
             if pr >= 0 and pc >= 0:
@@ -451,9 +462,8 @@ def main():
         pygame.draw.rect(screen, COLOR_PANEL_BORDER, panel_rect, 2, border_radius=8)
 
         # Title
-        screen.blit(font_title.render("Control & Telemetry", True, COLOR_TEXT_MAIN), (px, py + 12))
+        screen.blit(font_title.render("Othello Control Panel", True, COLOR_TEXT_MAIN), (px, py + 12))
 
-        # Buttons Helper
         def draw_btn(x, y, w, h, text, is_active=False):
             mouse_x, mouse_y = pygame.mouse.get_pos()
             hover = (x <= mouse_x <= x + w and y <= mouse_y <= y + h)
@@ -464,39 +474,39 @@ def main():
             txt = font_bold.render(text, True, COLOR_TEXT_MAIN)
             screen.blit(txt, (x + (w - txt.get_width()) // 2, y + (h - txt.get_height()) // 2))
 
-        # Configuration options
-        draw_btn(px, py + 45, 280, 30, f"Algorithm: {algos[algo_idx].upper()}")
-        draw_btn(px, py + 85, 280, 30, f"Threads (P): {threads_list[threads_idx]} Cores")
+        # Mode Selector
+        draw_btn(px, py + 45, 280, 30, f"Mode: {modes[mode_idx]}", is_active=("AI vs AI" in modes[mode_idx]))
 
-        # Depth selector
-        screen.blit(font_main.render(f"Search Depth: {depth}", True, COLOR_TEXT_MAIN), (px + 5, py + 132))
-        draw_btn(px + 120, py + 125, 30, 30, "-")
-        draw_btn(px + 160, py + 125, 30, 30, "+")
+        # Algorithm Selector
+        draw_btn(px, py + 85, 280, 30, f"AI Engine: {algos[algo_idx].upper()}")
 
-        # Side selector
-        side_text = "Play: Black (First)" if human_side == 1 else "Play: White (Second)"
-        draw_btn(px, py + 165, 280, 30, side_text)
+        # Threads Selector
+        draw_btn(px, py + 125, 280, 30, f"Parallel Threads: {threads_list[threads_idx]} Cores")
 
-        # Mode selector
-        mode_text = "Mode: Step-by-Step" if step_by_step else "Mode: Automatic Play"
-        draw_btn(px, py + 205, 280, 30, mode_text, is_active=step_by_step)
+        # Depth Selector
+        screen.blit(font_main.render(f"Search Depth: {depth}", True, COLOR_TEXT_MAIN), (px + 5, py + 172))
+        draw_btn(px + 120, py + 165, 30, 30, "-")
+        draw_btn(px + 160, py + 165, 30, 30, "+")
 
-        if step_by_step and pending_best_move is not None:
-            draw_btn(px, py + 245, 280, 30, ">>> Commit Engine Move <<<", is_active=True)
+        # Step Advance Button (in Step Mode)
+        if mode_idx == 3:
+            btn_txt = ">>> Commit Candidate Move <<<" if pending_best_move is not None else ">>> Compute Next AI Move <<<"
+            draw_btn(px, py + 210, 280, 35, btn_txt, is_active=True)
 
         # Telemetry Box
-        tbox_y = py + 290
-        tbox_rect = pygame.Rect(px, tbox_y, 280, 160)
+        tbox_y = py + 265
+        tbox_rect = pygame.Rect(px, tbox_y, 280, 180)
         pygame.draw.rect(screen, (22, 26, 32), tbox_rect, border_radius=6)
         pygame.draw.rect(screen, COLOR_PANEL_BORDER, tbox_rect, 1, border_radius=6)
 
         screen.blit(font_bold.render("Engine Telemetry", True, COLOR_TEXT_HIGHLIGHT), (px + 10, tbox_y + 8))
-        status_txt = "Thinking..." if engine_thinking else ("Waiting for Human" if game.turn == human_side else "Idle")
+        status_txt = "Thinking..." if engine_thinking else ("Waiting for Human" if can_human_act else "Idle")
         screen.blit(font_small.render(f"Status: {status_txt}", True, COLOR_TEXT_MUTED), (px + 10, tbox_y + 32))
-        screen.blit(font_main.render(f"Best Move:     {last_stats['move'].upper()}", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 54))
-        screen.blit(font_main.render(f"Score:         {last_stats['value']} cp", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 76))
-        screen.blit(font_main.render(f"Nodes:         {last_stats['nodes']:,}", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 98))
-        screen.blit(font_main.render(f"Time:          {last_stats['time_ms']:.2f} ms", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 120))
+        screen.blit(font_main.render(f"Player:        {last_stats['player']}", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 56))
+        screen.blit(font_main.render(f"Best Move:     {last_stats['move'].upper()}", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 80))
+        screen.blit(font_main.render(f"Score:         {last_stats['value']} cp", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 104))
+        screen.blit(font_main.render(f"Nodes:         {last_stats['nodes']:,}", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 128))
+        screen.blit(font_main.render(f"Search Time:   {last_stats['time_ms']:.2f} ms", True, COLOR_TEXT_MAIN), (px + 10, tbox_y + 152))
 
         # Score & Status Bar
         sbar_y = py + 465
@@ -506,7 +516,7 @@ def main():
             if game.black_count > game.white_count: turn_str = "Game Over: Black Wins!"
             elif game.white_count > game.black_count: turn_str = "Game Over: White Wins!"
             else: turn_str = "Game Over: Draw!"
-        screen.blit(font_main.render(f"Current: {turn_str}", True, COLOR_TEXT_HIGHLIGHT), (px + 10, sbar_y + 24))
+        screen.blit(font_main.render(f"State: {turn_str}", True, COLOR_TEXT_HIGHLIGHT), (px + 10, sbar_y + 24))
 
         # Bottom Action Buttons
         draw_btn(px, py + 520, 135, 35, "New Game")
