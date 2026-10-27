@@ -13,6 +13,7 @@
 #include "threadpool.hpp"
 #include "search_root.hpp"
 #include "search_pvs.hpp"
+#include "search_ybwc.hpp"
 
 using namespace othello;
 
@@ -481,9 +482,72 @@ void test_p2_pvs() {
     std::cout << "  P2 PVS Verification: PASSED\n";
 }
 
+void test_p3_ybwc() {
+    std::cout << "[Test 14] Testing P3 Young Brothers Wait Concept (YBWC) (P = 1, 2, 4, 8):\n";
+
+    ThreadPool pool1(1);
+    ThreadPool pool2(2);
+    ThreadPool pool4(4);
+    ThreadPool pool8(8);
+
+    // 1. Strict Value Equality against B2 across 50 random game positions at Depths 2, 3, 4
+    uint64_t seed = 888;
+    for (int game = 0; game < 50; ++game) {
+        Board b;
+        int plies = 6 + (game % 10);
+        for (int p = 0; p < plies; ++p) {
+            std::vector<int> moves = b.get_legal_moves_list();
+            if (moves.empty()) {
+                if (b.is_terminal()) break;
+                b.pass();
+                moves = b.get_legal_moves_list();
+                if (moves.empty()) break;
+            }
+            seed = seed * 6364136223846793005ULL + 1ULL;
+            b.make_move(moves[seed % moves.size()]);
+        }
+
+        if (b.is_terminal()) continue;
+
+        for (int depth = 2; depth <= 4; ++depth) {
+            SearchStats s_b2, s_p3_1, s_p3_2, s_p3_4, s_p3_8;
+
+            search_b2_alphabeta(b, depth, nullptr, s_b2, false, true, OrderMode::FULL);
+            search_p3_ybwc(b, depth, pool1, s_p3_1, nullptr, false, true, OrderMode::FULL);
+            search_p3_ybwc(b, depth, pool2, s_p3_2, nullptr, false, true, OrderMode::FULL);
+            search_p3_ybwc(b, depth, pool4, s_p3_4, nullptr, false, true, OrderMode::FULL);
+            search_p3_ybwc(b, depth, pool8, s_p3_8, nullptr, false, true, OrderMode::FULL);
+
+            assert(s_p3_1.value == s_b2.value);
+            assert(s_p3_2.value == s_b2.value);
+            assert(s_p3_4.value == s_b2.value);
+            assert(s_p3_8.value == s_b2.value);
+        }
+    }
+    std::cout << "  P3 Value Equality vs B2 (P=1, P=2, P=4, P=8 across 50 positions): EXACT MATCH\n";
+
+    // 2. Performance & Speedup measurement at Depth 6
+    Board start;
+    SearchStats s_seq, s_par4;
+    search_p3_ybwc(start, 6, pool1, s_seq, nullptr, false, true, OrderMode::FULL);
+    search_p3_ybwc(start, 6, pool4, s_par4, nullptr, false, true, OrderMode::FULL);
+
+    assert(s_par4.value == s_seq.value);
+    double speedup = s_seq.time_ms / std::max(s_par4.time_ms, 0.01);
+    double sop = (static_cast<double>(s_par4.nodes.load()) / static_cast<double>(s_seq.nodes.load())) - 1.0;
+
+    std::cout << "  Depth 6 P3 YBWC Metrics:\n"
+              << "    Sequential P=1 Time: " << s_seq.time_ms << " ms | Nodes: " << s_seq.nodes.load() << "\n"
+              << "    Parallel P=4 Time:   " << s_par4.time_ms << " ms | Nodes: " << s_par4.nodes.load() << "\n"
+              << "    Value Match:         " << s_par4.value << " == " << s_seq.value << " (OK)\n"
+              << "    Measured Speedup:    " << std::fixed << std::setprecision(2) << speedup << "x\n"
+              << "    Search Overhead SOP: +" << std::fixed << std::setprecision(1) << (sop * 100.0) << "%\n";
+    std::cout << "  P3 YBWC Verification: PASSED\n";
+}
+
 int main() {
     std::cout << "======================================================\n";
-    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..6 Tests\n";
+    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..7 Tests\n";
     std::cout << "======================================================\n";
 
     test_initial_state();
@@ -499,9 +563,10 @@ int main() {
     test_b1_b2_equality_and_pruning();
     test_threadpool_and_p1_root_splitting();
     test_p2_pvs();
+    test_p3_ybwc();
 
     std::cout << "======================================================\n";
-    std::cout << "  ALL PHASE 1..6 UNIT TESTS PASSED (100% SUCCESS)      \n";
+    std::cout << "  ALL PHASE 1..7 UNIT TESTS PASSED (100% SUCCESS)      \n";
     std::cout << "======================================================\n";
     return 0;
 }
