@@ -12,6 +12,11 @@ namespace othello {
 
 namespace {
 
+// Deadlock Prevention Flag:
+// Prevents cyclic task-stealing deadlocks (task inversion) by ensuring threads executing
+// a parallel child task search sequentially rather than entering nested split-wait loops.
+thread_local bool t_is_parallel_worker = false;
+
 int pvs_internal(Board board,
                  int depth,
                  int alpha,
@@ -102,7 +107,8 @@ int pvs_internal(Board board,
     }
 
     // 6. Remaining Sibling Moves (moves[1 ... N-1])
-    bool can_split = is_pv && (depth >= 2) && (pool.size() > 1) &&
+    // Deadlock Prevention: worker threads executing parallel tasks search sequentially.
+    bool can_split = !t_is_parallel_worker && is_pv && (depth >= 2) && (pool.size() > 1) &&
                      (!parent_cutoff || !parent_cutoff->load(std::memory_order_relaxed));
 
     if (can_split) {
@@ -119,8 +125,11 @@ int pvs_internal(Board board,
             size_t target_worker = i % pool.size();
 
             pool.submit([&, sq, target_worker]() {
+                t_is_parallel_worker = true;
+
                 if (node_cutoff.load(std::memory_order_relaxed) ||
                     (parent_cutoff && parent_cutoff->load(std::memory_order_relaxed))) {
+                    t_is_parallel_worker = false;
                     remaining.fetch_sub(1, std::memory_order_release);
                     return;
                 }
@@ -166,6 +175,7 @@ int pvs_internal(Board board,
                     }
                 }
 
+                t_is_parallel_worker = false;
                 remaining.fetch_sub(1, std::memory_order_release);
             }, target_worker);
         }
@@ -304,7 +314,10 @@ int search_p2_pvs(Board board,
                 size_t target_worker = i % pool.size();
 
                 pool.submit([&, sq, target_worker]() {
+                    t_is_parallel_worker = true;
+
                     if (node_cutoff.load(std::memory_order_relaxed)) {
+                        t_is_parallel_worker = false;
                         remaining.fetch_sub(1, std::memory_order_release);
                         return;
                     }
@@ -339,6 +352,7 @@ int search_p2_pvs(Board board,
                         while (score > old_a && !shared_alpha.compare_exchange_weak(old_a, score, std::memory_order_relaxed)) {}
                     }
 
+                    t_is_parallel_worker = false;
                     remaining.fetch_sub(1, std::memory_order_release);
                 }, target_worker);
             }
