@@ -22,4 +22,23 @@ public:
                       OrderMode mode = OrderMode::FULL);
 };
 
+inline OrderMode parse_order_mode(const std::string& str) {
+    if (str == "history_only" || str == "history") return OrderMode::HISTORY_ONLY;
+    if (str == "none") return OrderMode::NONE;
+    if (str == "random") return OrderMode::RANDOM;
+    if (str == "reverse") return OrderMode::REVERSE;
+    return OrderMode::FULL;
+}
+
+inline std::string order_mode_to_string(OrderMode mode) {
+    switch (mode) {
+        case OrderMode::FULL: return "full";
+        case OrderMode::HISTORY_ONLY: return "history_only";
+        case OrderMode::NONE: return "none";
+        case OrderMode::RANDOM: return "random";
+        case OrderMode::REVERSE: return "reverse";
+    }
+    return "full";
+}
+
 } // namespace othello

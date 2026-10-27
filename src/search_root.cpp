@@ -16,7 +16,7 @@ struct MoveResult {
 
 } // anonymous namespace
 
-int search_p1_root(Board board, int depth, ThreadPool& pool, SearchStats& stats) {
+int search_p1_root(Board board, int depth, ThreadPool& pool, SearchStats& stats, OrderMode order_mode) {
     auto t0 = std::chrono::high_resolution_clock::now();
     stats.reset();
     stats.depth = depth;
@@ -29,7 +29,8 @@ int search_p1_root(Board board, int depth, ThreadPool& pool, SearchStats& stats)
     }
 
     // Root move ordering
-    MoveOrdering::order(board, moves, -1, nullptr, OrderMode::FULL);
+    MoveOrdering::order(board, moves, -1, nullptr, order_mode);
+    stats.splits.store(1, std::memory_order_relaxed);
 
     std::vector<MoveResult> results(moves.size());
     size_t num_workers = pool.size();
@@ -39,14 +40,14 @@ int search_p1_root(Board board, int depth, ThreadPool& pool, SearchStats& stats)
         int sq = moves[i];
         size_t target_worker = i % num_workers;
 
-        pool.submit([&results, i, sq, board, depth]() {
+        pool.submit([&results, i, sq, board, depth, order_mode]() {
             Board next = board;
             next.make_move(sq);
 
             SearchStats sub_stats;
             // Independent alpha-beta search with full (-INF, INF) window:
             // No shared atomic pruning between workers (pure naive Root Splitting)
-            int val = -negamax_b2_internal(next, depth - 1, -INF, INF, nullptr, nullptr, sub_stats, false, true, OrderMode::FULL, false);
+            int val = -negamax_b2_internal(next, depth - 1, -INF, INF, nullptr, nullptr, sub_stats, false, true, order_mode, false);
 
             results[i].sq = sq;
             results[i].score = val;
@@ -73,6 +74,8 @@ int search_p1_root(Board board, int depth, ThreadPool& pool, SearchStats& stats)
     stats.best_move = best_sq;
     stats.value = best_val;
     stats.nodes = total_nodes;
+    stats.steals.store(pool.get_steals(), std::memory_order_relaxed);
+    stats.idle_time_us.store(pool.get_idle_time_us(), std::memory_order_relaxed);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     stats.time_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();

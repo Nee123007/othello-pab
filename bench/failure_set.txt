@@ -1,0 +1,32 @@
+# Failure Analysis Position Set
+# pos_id,board_string,turn
+early_001,...X......XX.....XXXO......OX.....OOOX.......O..................,b
+early_002,...........XO.....XX..X...OXOX.....OOO......O........O..........,b
+early_003,............X....O.OX....OXXX....O.XX.....O.XX..................,b
+early_004,......O.....OO......OO.X..XXO.X....OXX....O.....................,b
+early_005,..................XX......XXX...OOXXX.....O.O......O.O..........,b
+early_006,..........X.......XX......XXOO.O...XXOOX.....O..................,b
+early_007,.................OOOO......XXO....XOOOO..X..X...................,b
+early_008,...................X......OXX......OXXO....OOOX....OX...........,b
+early_009,...........X.......X..O..OOOOOX....XOX......XO..................,b
+early_010,...........OOO....OOOX.....XXX....XXXX..........................,b
+mid_001,........O....X..XOXXX...XXOXXXX.X.XOOXX...OXXXX..OX.X......X....,w
+mid_002,.O..X....OOXO...XOXO.O...XXXO...XXXOOO...OO.OX...O..O......XO...,w
+mid_003,....OX..O...XX...OXXXX....OXOXOOOOOOOXX.XXOO.XX.................,w
+mid_004,X.....O..X...O....X.OO..XXXOOOO.XXOXXO..XO..XOOO.O..OX..........,w
+mid_005,..XXXX....XXOX..XXXOOXXXXXOXOO...OXOOO..O...O...................,w
+mid_006,...XO......XOO.O..XXOXO...XOOX..XOXXXO..XXXX.XO.X.......X.......,w
+mid_007,..OOOO.....XO.OX..XXXOX..X.XXXOX...XXXO....XXXO....X.X..........,w
+mid_008,...........X.O....X.XOO..X.OXXXX..XOXOXO...XOXO....OXOOX...X..O.,w
+mid_009,........OOO.XO..XXO.O....XOOXO..XXXOOXXX.X.XXX......XXO.........,w
+mid_010,...O......OOOXX....O.X.....OXXO....XXXXO..XOOX...XXXXX..X.X..X..,w
+late_001,.X.OO.OXXOXOOOOX.OXXO.OXOOOXXOOX.O.XXXOX..XXXOOO.XXXXX.X.XXXX...,w
+late_002,.OXXXX...XOOX.XOO.XOOXOOXXXOXOOO..OXOO.O.XXXXOOX.XXX.XO..X.XXXXO,w
+late_003,.X..XO....X..XX..X.X.XXXOXXOOOXXOXOXOOOOOXOOXXOO.XXOXOO.XXXXOOOO,w
+late_004,.XXXXXX.OXXXXXX.OXOXXXX.OXOOXX..O.XOOXOOOOOOOOOXOOOOOOO....O....,w
+late_005,OO......OOOOO.X.OOOO.XO.OOOOXOXXOOXXXXXOO.XOXXXOOXOXXXX.OO..XXX.,w
+late_006,.OOOOOOOXXOOXOOOXXXOOXXOXXXXOXOOXXXOXXXOXXXOXX.OXX.....O........,w
+late_007,.XOOO.O..XXOOO...XOXO.X..XOXOX..OXOOOXXXOXOXOXXXOOOOXXXXO..XXXO.,w
+late_008,.O...XXO..OXXXX..OXOXXXXXXXXOXXXXXXOXOOXXXXXXOO.X.OXOOOO..OOX...,w
+late_009,...OXXXX..XXXXXOX.OXOXX..OOXXOXXOOOXXXXX.OOXOXXX.O.OXXXX..OX.X.X,w
+late_010,XXX.OXX..XOOOX.X..XXXOXXXOXXOOOOXOOOOOO.XOXXXOX..OOOOX.X.O.OO...,w

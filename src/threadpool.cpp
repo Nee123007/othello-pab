@@ -1,5 +1,6 @@
 #include "threadpool.hpp"
 #include <algorithm>
+#include <chrono>
 
 namespace othello {
 
@@ -56,6 +57,7 @@ bool ThreadPool::try_steal_and_execute(size_t thief_id) {
             if (lock.owns_lock() && !queues_[victim].tasks.empty()) {
                 task = std::move(queues_[victim].tasks.back()); // Steal from back
                 queues_[victim].tasks.pop_back();
+                steals_.fetch_add(1, std::memory_order_relaxed);
                 break;
             }
         }
@@ -76,11 +78,15 @@ bool ThreadPool::try_steal_and_execute(size_t thief_id) {
 void ThreadPool::worker_loop(size_t worker_id) {
     while (!stop_.load(std::memory_order_acquire)) {
         if (!try_steal_and_execute(worker_id)) {
+            auto t_wait_start = std::chrono::steady_clock::now();
             std::unique_lock<std::mutex> lock(cv_mtx_);
             cv_work_.wait(lock, [this]() {
                 return stop_.load(std::memory_order_acquire) ||
                        pending_tasks_.load(std::memory_order_relaxed) > 0;
             });
+            auto t_wait_end = std::chrono::steady_clock::now();
+            uint64_t us = std::chrono::duration_cast<std::chrono::microseconds>(t_wait_end - t_wait_start).count();
+            idle_time_us_.fetch_add(us, std::memory_order_relaxed);
         }
     }
 

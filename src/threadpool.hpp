@@ -31,6 +31,14 @@ public:
     // Pool size (number of worker threads)
     size_t size() const { return workers_.size(); }
 
+    // Diagnostics (Phase 10)
+    uint64_t get_steals() const { return steals_.load(std::memory_order_relaxed); }
+    uint64_t get_idle_time_us() const { return idle_time_us_.load(std::memory_order_relaxed); }
+    void reset_stats() {
+        steals_.store(0, std::memory_order_relaxed);
+        idle_time_us_.store(0, std::memory_order_relaxed);
+    }
+
 private:
     struct WorkerQueue {
         std::deque<std::function<void()>> tasks;
@@ -45,6 +53,8 @@ private:
 
     std::atomic<bool> stop_{false};
     std::atomic<int> pending_tasks_{0};
+    std::atomic<uint64_t> steals_{0};
+    std::atomic<uint64_t> idle_time_us_{0};
 
     std::condition_variable cv_work_;
     std::condition_variable cv_done_;

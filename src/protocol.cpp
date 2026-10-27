@@ -35,7 +35,7 @@ Board parse_board_string(const std::string& board_str, char side_char) {
     return Board(me, opp, turn);
 }
 
-void execute_go(Board& current_board, TranspositionTable& tt, int depth, const std::string& algo, int threads) {
+void execute_go(Board& current_board, TranspositionTable& tt, int depth, const std::string& algo, int threads, OrderMode order_mode) {
     SearchStats stats;
     int move = -1;
 
@@ -46,20 +46,19 @@ void execute_go(Board& current_board, TranspositionTable& tt, int depth, const s
     } else if (algo == "b1" || algo == "minimax") {
         move = search_b1_minimax(current_board, depth, stats);
     } else if (algo == "b2" || algo == "alphabeta") {
-        move = search_b2_alphabeta(current_board, depth, &tt, stats, true, true, OrderMode::FULL);
+        move = search_b2_alphabeta(current_board, depth, &tt, stats, true, true, order_mode);
     } else if (algo == "p1" || algo == "p2" || algo == "p3") {
-        // Parallel algorithms (Phase 5..7); fallback to B2 if threads <= 1
         ThreadPool pool(threads);
         if (algo == "p1") {
-            move = search_p1_root(current_board, depth, pool, stats);
+            move = search_p1_root(current_board, depth, pool, stats, order_mode);
         } else if (algo == "p2") {
-            move = search_p2_pvs(current_board, depth, pool, stats);
+            move = search_p2_pvs(current_board, depth, pool, stats, &tt, true, true, order_mode);
         } else {
-            move = search_p3_ybwc(current_board, depth, pool, stats);
+            move = search_p3_ybwc(current_board, depth, pool, stats, &tt, true, true, order_mode);
         }
     } else {
         // Default to B2
-        move = search_b2_alphabeta(current_board, depth, &tt, stats, true, true, OrderMode::FULL);
+        move = search_b2_alphabeta(current_board, depth, &tt, stats, true, true, order_mode);
     }
 
     std::string coord = Board::square_to_coord(move);
@@ -67,17 +66,22 @@ void execute_go(Board& current_board, TranspositionTable& tt, int depth, const s
               << " value " << stats.value
               << " nodes " << stats.nodes.load()
               << " time_ms " << std::fixed << std::setprecision(2) << stats.time_ms
+              << " splits " << stats.splits.load()
+              << " steals " << stats.steals.load()
+              << " cancels " << stats.cancels.load()
+              << " idle_us " << stats.idle_time_us.load()
+              << " order " << order_mode_to_string(order_mode)
               << "\n" << std::flush;
 }
 
-void execute_bench(const std::string& filepath, const std::string& algo, int depth, int threads, TranspositionTable& tt) {
+void execute_bench(const std::string& filepath, const std::string& algo, int depth, int threads, OrderMode order_mode, TranspositionTable& tt) {
     std::ifstream infile(filepath);
     if (!infile.is_open()) {
         std::cerr << "Error: Could not open benchmark positions file: " << filepath << "\n";
         return;
     }
 
-    std::cout << "algo,threads,depth,position_id,value,bestmove,nodes,time_ms\n" << std::flush;
+    std::cout << "algo,threads,depth,position_id,value,bestmove,nodes,time_ms,splits,steals,cancels,idle_us,order\n" << std::flush;
 
     std::unique_ptr<ThreadPool> pool;
     if (algo == "p1" || algo == "p2" || algo == "p3") {
@@ -135,11 +139,12 @@ void execute_bench(const std::string& filepath, const std::string& algo, int dep
             move = search_b1_minimax(b, depth, stats);
         } else if (algo == "b2") {
             tt.clear();
-            move = search_b2_alphabeta(b, depth, &tt, stats, true, true, OrderMode::FULL);
+            move = search_b2_alphabeta(b, depth, &tt, stats, true, true, order_mode);
         } else if (pool) {
-            if (algo == "p1") move = search_p1_root(b, depth, *pool, stats);
-            else if (algo == "p2") move = search_p2_pvs(b, depth, *pool, stats);
-            else move = search_p3_ybwc(b, depth, *pool, stats);
+            pool->reset_stats();
+            if (algo == "p1") move = search_p1_root(b, depth, *pool, stats, order_mode);
+            else if (algo == "p2") move = search_p2_pvs(b, depth, *pool, stats, &tt, true, true, order_mode);
+            else move = search_p3_ybwc(b, depth, *pool, stats, &tt, true, true, order_mode);
         }
 
         std::string move_coord = Board::square_to_coord(move);
@@ -150,14 +155,28 @@ void execute_bench(const std::string& filepath, const std::string& algo, int dep
                   << stats.value << ","
                   << move_coord << ","
                   << stats.nodes.load() << ","
-                  << std::fixed << std::setprecision(2) << stats.time_ms
+                  << std::fixed << std::setprecision(2) << stats.time_ms << ","
+                  << stats.splits.load() << ","
+                  << stats.steals.load() << ","
+                  << stats.cancels.load() << ","
+                  << stats.idle_time_us.load() << ","
+                  << order_mode_to_string(order_mode)
                   << "\n" << std::flush;
     }
 }
 
 } // anonymous namespace
 
-void run_protocol() {
+void run_protocol(int argc, char* argv[]) {
+    OrderMode default_order = OrderMode::FULL;
+    for (int i = 1; i < argc; ++i) {
+        if (!argv[i]) continue;
+        std::string arg = argv[i];
+        if (arg.rfind("--order=", 0) == 0) {
+            default_order = parse_order_mode(arg.substr(8));
+        }
+    }
+
     Board current_board;
     TranspositionTable tt(16); // 16 MB default table
 
@@ -210,6 +229,7 @@ void run_protocol() {
             int depth = 6;
             std::string algo = "b2";
             int threads = 1;
+            OrderMode order_mode = default_order;
 
             std::string key;
             while (ss >> key) {
@@ -219,22 +239,35 @@ void run_protocol() {
                     ss >> algo;
                 } else if (key == "threads") {
                     ss >> threads;
+                } else if (key == "order") {
+                    std::string om;
+                    ss >> om;
+                    order_mode = parse_order_mode(om);
                 }
             }
 
-            execute_go(current_board, tt, depth, algo, threads);
+            execute_go(current_board, tt, depth, algo, threads, order_mode);
         } else if (cmd == "bench") {
             std::string filepath;
             std::string algo = "b2";
             int depth = 6;
             int threads = 1;
+            std::string order_str;
 
             ss >> filepath >> algo >> depth >> threads;
-            execute_bench(filepath, algo, depth, threads, tt);
+            OrderMode order_mode = default_order;
+            if (ss >> order_str) {
+                order_mode = parse_order_mode(order_str);
+            }
+            execute_bench(filepath, algo, depth, threads, order_mode, tt);
         } else {
             std::cout << "unknown command: " << cmd << "\n" << std::flush;
         }
     }
+}
+
+void run_protocol() {
+    run_protocol(0, nullptr);
 }
 
 } // namespace othello

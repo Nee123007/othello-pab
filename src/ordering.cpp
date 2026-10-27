@@ -1,6 +1,7 @@
 #include "ordering.hpp"
 #include "eval.hpp"
 #include <algorithm>
+#include <random>
 
 namespace othello {
 
@@ -51,8 +52,11 @@ void MoveOrdering::order(const Board& board,
         return;
     }
 
-    if (mode == OrderMode::REVERSE) {
-        std::reverse(moves.begin(), moves.end());
+    if (mode == OrderMode::RANDOM) {
+        // Deterministic pseudo-random shuffle seeded per board state for reproducible benchmarks
+        uint64_t seed = board.me ^ (board.opp * 0x9e3779b97f4a7c15ULL) ^ static_cast<uint64_t>(board.turn);
+        std::mt19937_64 rng(seed);
+        std::shuffle(moves.begin(), moves.end(), rng);
         return;
     }
 
@@ -62,6 +66,30 @@ void MoveOrdering::order(const Board& board,
         std::stable_sort(moves.begin(), moves.end(), [&](int a, int b) {
             return history[t][a] > history[t][b];
         });
+        return;
+    }
+
+    if (mode == OrderMode::REVERSE) {
+        // Worst-first ordering: sort ascending so worst move is evaluated first
+        struct ScoredMove {
+            int sq;
+            int score;
+        };
+
+        std::vector<ScoredMove> scored;
+        scored.reserve(moves.size());
+
+        for (int sq : moves) {
+            scored.push_back({sq, score_move_full(board, sq, tt_best_move, history)});
+        }
+
+        std::stable_sort(scored.begin(), scored.end(), [](const ScoredMove& a, const ScoredMove& b) {
+            return a.score < b.score; // Worst first
+        });
+
+        for (size_t i = 0; i < moves.size(); ++i) {
+            moves[i] = scored[i].sq;
+        }
         return;
     }
 

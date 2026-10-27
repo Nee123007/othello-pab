@@ -114,6 +114,7 @@ int ybwc_internal(Board board,
 
     if (can_split) {
         // Parallel Younger Brothers Splitting
+        stats.splits.fetch_add(1, std::memory_order_relaxed);
         size_t num_younger = moves.size() - 1;
         std::atomic<int> shared_alpha{alpha};
         std::atomic<int> shared_best_val{best_val};
@@ -130,6 +131,7 @@ int ybwc_internal(Board board,
 
                 if (node_cutoff.load(std::memory_order_relaxed) ||
                     (parent_cutoff && parent_cutoff->load(std::memory_order_relaxed))) {
+                    stats.cancels.fetch_add(1, std::memory_order_relaxed);
                     t_is_parallel_worker = false;
                     remaining.fetch_sub(1, std::memory_order_release);
                     return;
@@ -173,9 +175,16 @@ int ybwc_internal(Board board,
         }
 
         // Active cooperative waiting: calling thread helps execute tasks while waiting
+        int backoff = 0;
         while (remaining.load(std::memory_order_acquire) > 0) {
             if (!pool.help_work(0)) {
-                std::this_thread::yield();
+                if (++backoff > 10) {
+                    std::this_thread::sleep_for(std::chrono::microseconds(10));
+                } else {
+                    std::this_thread::yield();
+                }
+            } else {
+                backoff = 0;
             }
         }
 
@@ -284,6 +293,7 @@ int search_p3_ybwc(Board board,
     // 2. Younger Brothers Search for remaining root moves
     if (moves.size() > 1) {
         if (pool.size() > 1 && depth >= 2) {
+            stats.splits.fetch_add(1, std::memory_order_relaxed);
             size_t num_younger = moves.size() - 1;
             std::atomic<int> shared_alpha{alpha};
             std::atomic<int> shared_best_val{best_val};
@@ -299,6 +309,7 @@ int search_p3_ybwc(Board board,
                     t_is_parallel_worker = true;
 
                     if (node_cutoff.load(std::memory_order_relaxed)) {
+                        stats.cancels.fetch_add(1, std::memory_order_relaxed);
                         t_is_parallel_worker = false;
                         remaining.fetch_sub(1, std::memory_order_release);
                         return;
@@ -333,9 +344,16 @@ int search_p3_ybwc(Board board,
             }
 
             // Calling thread helps execute tasks while waiting
+            int backoff = 0;
             while (remaining.load(std::memory_order_acquire) > 0) {
                 if (!pool.help_work(0)) {
-                    std::this_thread::yield();
+                    if (++backoff > 10) {
+                        std::this_thread::sleep_for(std::chrono::microseconds(10));
+                    } else {
+                        std::this_thread::yield();
+                    }
+                } else {
+                    backoff = 0;
                 }
             }
 
@@ -368,6 +386,8 @@ int search_p3_ybwc(Board board,
 
     stats.best_move = best_sq;
     stats.value = best_val;
+    stats.steals.store(pool.get_steals(), std::memory_order_relaxed);
+    stats.idle_time_us.store(pool.get_idle_time_us(), std::memory_order_relaxed);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     stats.time_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
