@@ -4,10 +4,12 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <iomanip>
 #include "board.hpp"
 #include "zobrist.hpp"
 #include "tt.hpp"
 #include "eval.hpp"
+#include "search_seq.hpp"
 
 using namespace othello;
 
@@ -226,12 +228,10 @@ void test_transposition_table_multithreaded_stress() {
 void test_evaluation_symmetry_and_exactness() {
     std::cout << "[Test 9] Testing Evaluation Function (Symmetry & Terminal Exactness)... ";
 
-    // 1. Initial board symmetry: eval(initial) == 0
     Board initial;
     int init_score = evaluate(initial);
     assert(init_score == 0);
 
-    // 2. Color-swapped symmetry on 50 positions reached through game play
     uint64_t seed = 42;
     for (int game = 0; game < 50; ++game) {
         Board b;
@@ -247,7 +247,6 @@ void test_evaluation_symmetry_and_exactness() {
             int chosen = moves[seed % moves.size()];
             b.make_move(chosen);
 
-            // Test strict negamax symmetry on current state
             Board swapped(b.opp, b.me, opponent(b.turn));
             int eval_normal = evaluate(b);
             int eval_swapped = evaluate(swapped);
@@ -255,10 +254,8 @@ void test_evaluation_symmetry_and_exactness() {
         }
     }
 
-    // 3. Terminal exactness test:
-    // Full board with 40 Black, 24 White (diff = +16 for Black)
-    uint64_t b_discs = 0x000000FFFFFFFFFFULL; // 40 bits set
-    uint64_t w_discs = ~b_discs;              // 24 bits set
+    uint64_t b_discs = 0x000000FFFFFFFFFFULL;
+    uint64_t w_discs = ~b_discs;
     Board terminal_board(b_discs, w_discs, Color::BLACK);
     assert(terminal_board.is_terminal());
     assert(terminal_board.my_disc_count() == 40);
@@ -266,7 +263,6 @@ void test_evaluation_symmetry_and_exactness() {
     int term_score = evaluate(terminal_board);
     assert(term_score == TERMINAL_WIN_BASE + 16);
 
-    // Swap sides -> must be exact loss
     Board terminal_opp(w_discs, b_discs, Color::WHITE);
     int term_opp_score = evaluate(terminal_opp);
     assert(term_opp_score == -TERMINAL_WIN_BASE - 16);
@@ -274,9 +270,88 @@ void test_evaluation_symmetry_and_exactness() {
     std::cout << "PASSED\n";
 }
 
+void test_b0_random_and_greedy() {
+    std::cout << "[Test 10] Testing B0 Random & Greedy Players... ";
+    Board b;
+    SearchStats s_rnd, s_grd;
+
+    int r_move = search_b0_random(b, s_rnd, 12345);
+    assert(r_move >= 0 && r_move < 64);
+    assert(s_rnd.nodes == 1);
+
+    int g_move = search_b0_greedy(b, s_grd);
+    assert(g_move >= 0 && g_move < 64);
+    assert(s_grd.nodes == 4);
+    assert(s_grd.value == 1); // Opening move flips 1 disc
+
+    std::cout << "PASSED\n";
+}
+
+void test_b1_b2_equality_and_pruning() {
+    std::cout << "[Test 11] Testing B1 (Minimax) vs B2 (Alpha-Beta) Value Equality & Pruning Efficiency:\n";
+    TranspositionTable tt(16);
+
+    // 1. Value equality across 50 positions at depths 1 to 4
+    uint64_t seed = 101;
+    for (int game = 0; game < 50; ++game) {
+        Board b;
+        int plies = 4 + (game % 10);
+        for (int p = 0; p < plies; ++p) {
+            std::vector<int> moves = b.get_legal_moves_list();
+            if (moves.empty()) {
+                if (b.is_terminal()) break;
+                b.pass();
+                moves = b.get_legal_moves_list();
+                if (moves.empty()) break;
+            }
+            seed = seed * 6364136223846793005ULL + 1ULL;
+            b.make_move(moves[seed % moves.size()]);
+        }
+
+        if (b.is_terminal()) continue;
+
+        for (int depth = 1; depth <= 4; ++depth) {
+            SearchStats s_b1, s_b2_raw, s_b2_full;
+            search_b1_minimax(b, depth, s_b1);
+
+            // B2 without TT and without ordering
+            search_b2_alphabeta(b, depth, nullptr, s_b2_raw, false, false, OrderMode::NONE);
+            assert(s_b1.value == s_b2_raw.value);
+
+            // B2 with TT and full ordering
+            tt.clear();
+            search_b2_alphabeta(b, depth, &tt, s_b2_full, true, true, OrderMode::FULL);
+            assert(s_b1.value == s_b2_full.value);
+        }
+    }
+    std::cout << "  50 Random Positions Equality (Depths 1 to 4): EXACT MATCH\n";
+
+    // 2. Measure depth 5 pruning efficiency on starting position
+    Board start;
+    SearchStats s_minimax, s_alphabeta;
+    search_b1_minimax(start, 5, s_minimax);
+
+    tt.clear();
+    search_b2_alphabeta(start, 5, &tt, s_alphabeta, true, true, OrderMode::FULL);
+
+    assert(s_minimax.value == s_alphabeta.value);
+    uint64_t n_minimax = s_minimax.nodes.load();
+    uint64_t n_ab = s_alphabeta.nodes.load();
+    double pruning_gain = 1.0 - (static_cast<double>(n_ab) / static_cast<double>(n_minimax));
+
+    std::cout << "  Depth 5 Benchmarks:\n"
+              << "    B1 Minimax Nodes:    " << n_minimax << " (" << s_minimax.time_ms << " ms)\n"
+              << "    B2 Alpha-Beta Nodes: " << n_ab << " (" << s_alphabeta.time_ms << " ms)\n"
+              << "    Value Match:         " << s_alphabeta.value << " == " << s_minimax.value << " (OK)\n"
+              << "    Pruning Efficiency:  " << std::fixed << std::setprecision(2) << (pruning_gain * 100.0) << "%\n" << std::flush;
+
+    assert(pruning_gain > 0.50); // Alpha-Beta must prune significant portion of minimax tree
+    std::cout << "  Pruning Efficiency Assertion: PASSED\n";
+}
+
 int main() {
     std::cout << "======================================================\n";
-    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1 & 2 Tests\n";
+    std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..3 Tests\n";
     std::cout << "======================================================\n";
 
     test_initial_state();
@@ -288,9 +363,11 @@ int main() {
     test_transposition_table_bounds_and_replacement();
     test_transposition_table_multithreaded_stress();
     test_evaluation_symmetry_and_exactness();
+    test_b0_random_and_greedy();
+    test_b1_b2_equality_and_pruning();
 
     std::cout << "======================================================\n";
-    std::cout << "  ALL PHASE 1 & 2 TESTS PASSED (100% SUCCESS)          \n";
+    std::cout << "  ALL PHASE 1, 2, AND 3 TESTS PASSED (100% SUCCESS)    \n";
     std::cout << "======================================================\n";
     return 0;
 }
