@@ -7,8 +7,15 @@
 #include <mutex>
 #include <condition_variable>
 #include <cstddef>
+#include <memory>
 
 namespace othello {
+
+enum class WorkerState : uint8_t {
+    IDLE = 0,
+    BUSY = 1,
+    STEALING = 2
+};
 
 class ThreadPool {
 public:
@@ -31,13 +38,17 @@ public:
     // Pool size (number of worker threads)
     size_t size() const { return workers_.size(); }
 
-    // Diagnostics (Phase 10)
+    // Diagnostics (Phase 10 & Web Lab)
     uint64_t get_steals() const { return steals_.load(std::memory_order_relaxed); }
     uint64_t get_idle_time_us() const { return idle_time_us_.load(std::memory_order_relaxed); }
-    void reset_stats() {
-        steals_.store(0, std::memory_order_relaxed);
-        idle_time_us_.store(0, std::memory_order_relaxed);
-    }
+    WorkerState get_worker_state(size_t worker_id) const;
+    uint64_t get_worker_nodes(size_t worker_id) const;
+    void add_worker_nodes(size_t worker_id, uint64_t count);
+    void set_worker_state(size_t worker_id, WorkerState state);
+
+    void reset_stats();
+
+    static ThreadPool* active_pool();
 
 private:
     struct WorkerQueue {
@@ -51,6 +62,9 @@ private:
     std::vector<std::thread> workers_;
     std::vector<WorkerQueue> queues_;
 
+    std::unique_ptr<std::atomic<uint64_t>[]> worker_nodes_;
+    std::unique_ptr<std::atomic<uint8_t>[]> worker_states_;
+
     std::atomic<bool> stop_{false};
     std::atomic<int> pending_tasks_{0};
     std::atomic<uint64_t> steals_{0};
@@ -60,5 +74,7 @@ private:
     std::condition_variable cv_done_;
     std::mutex cv_mtx_;
 };
+
+extern thread_local int t_thread_worker_id;
 
 } // namespace othello

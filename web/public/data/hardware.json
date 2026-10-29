@@ -1,0 +1,10 @@
+{
+  "cpu": "12th Gen Intel(R) Core(TM) i7-12650H",
+  "physical_cores": 10,
+  "logical_cores": 16,
+  "ram_gb": 16,
+  "os": "Windows 11",
+  "compiler": "MinGW GCC 16.2.0 (WinLibs UCRT)",
+  "cxx_flags": "-O2 -Wall -Wextra -std=c++17"
+}
+

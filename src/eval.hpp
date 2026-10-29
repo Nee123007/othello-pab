@@ -26,8 +26,21 @@ extern const int POSITIONAL_WEIGHTS[64];
 // Terminal score scale constant
 constexpr int TERMINAL_WIN_BASE = 100000;
 
+struct EvalBreakdown {
+    std::string phase{"opening"};
+    int mobility{0};
+    int corners{0};
+    int positional{0};
+    int stability{0};
+    int discs{0};
+    int total{0};
+};
+
 // Evaluation function e(s) from Section 5.2
 int evaluate(const Board& board);
+
+// Component breakdown of evaluation
+EvalBreakdown get_eval_breakdown(const Board& board);
 
 // Sub-component evaluators (useful for testing & analysis)
 int eval_mobility(const Board& board);

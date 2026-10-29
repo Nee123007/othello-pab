@@ -192,4 +192,40 @@ int evaluate(const Board& board) {
     return score;
 }
 
+EvalBreakdown get_eval_breakdown(const Board& board) {
+    EvalBreakdown b;
+    if (board.is_terminal()) {
+        int diff = board.disc_difference();
+        b.phase = "terminal";
+        b.mobility = 0;
+        b.corners = 0;
+        b.positional = 0;
+        b.stability = 0;
+        b.discs = (diff > 0) ? TERMINAL_WIN_BASE + diff : (diff < 0 ? -TERMINAL_WIN_BASE + diff : 0);
+        b.total = b.discs;
+        return b;
+    }
+
+    int total = board.total_discs();
+    const PhaseWeights& w = (total <= 20) ? g_eval_config.opening
+                          : (total <= 52) ? g_eval_config.midgame
+                                          : g_eval_config.endgame;
+    b.phase = (total <= 20) ? "opening" : (total <= 52 ? "midgame" : "endgame");
+
+    int mob = eval_mobility(board);
+    int corners = eval_corners(board);
+    int pos = eval_positional(board);
+    int stab = eval_stability(board);
+    int discs = eval_discs(board);
+
+    b.mobility = w.w_mobility * mob;
+    b.corners = (w.w_corners * corners) / 100;
+    b.positional = w.w_positional * pos;
+    b.stability = w.w_stability * stab;
+    b.discs = w.w_discs * discs;
+    b.total = b.mobility + b.corners + b.positional + b.stability + b.discs;
+
+    return b;
+}
+
 } // namespace othello

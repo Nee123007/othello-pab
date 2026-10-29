@@ -30,4 +30,6 @@ struct SearchStats {
     }
 };
 
+extern std::atomic<bool> g_search_stop;
+
 } // namespace othello

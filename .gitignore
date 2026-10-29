@@ -19,6 +19,12 @@ __pycache__/
 .venv/
 venv/
 env/
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+web/node_modules/
+web/dist/
 
 # Generated Benchmark CSVs
 results/*.csv

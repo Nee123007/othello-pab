@@ -31,12 +31,18 @@ int ybwc_internal(Board board,
                   const std::atomic<bool>* parent_cutoff,
                   bool passed) {
     // 1. Cooperative early cancellation check
+    if (g_search_stop.load(std::memory_order_relaxed)) {
+        return beta;
+    }
     if (parent_cutoff && parent_cutoff->load(std::memory_order_relaxed)) {
         return beta;
     }
 
     // 2. Leaf or terminal evaluation
     stats.nodes.fetch_add(1, std::memory_order_relaxed);
+    if (t_thread_worker_id >= 0 && ThreadPool::active_pool()) {
+        ThreadPool::active_pool()->add_worker_nodes(t_thread_worker_id, 1);
+    }
     if (depth == 0 || board.is_terminal()) {
         return evaluate(board);
     }

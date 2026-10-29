@@ -1,0 +1,242 @@
+[
+  {
+    "black": "B0_Random",
+    "white": "B0_Greedy",
+    "black_discs": 22,
+    "white_discs": 42,
+    "disc_diff": -20,
+    "winner": "B0_Greedy",
+    "plies": 56,
+    "game_id": 1
+  },
+  {
+    "black": "B0_Random",
+    "white": "B0_Greedy",
+    "black_discs": 0,
+    "white_discs": 20,
+    "disc_diff": -20,
+    "winner": "B0_Greedy",
+    "plies": 12,
+    "game_id": 2
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "B0_Random",
+    "black_discs": 54,
+    "white_discs": 10,
+    "disc_diff": 44,
+    "winner": "B0_Greedy",
+    "plies": 56,
+    "game_id": 3
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "B0_Random",
+    "black_discs": 42,
+    "white_discs": 22,
+    "disc_diff": 20,
+    "winner": "B0_Greedy",
+    "plies": 56,
+    "game_id": 4
+  },
+  {
+    "black": "B0_Random",
+    "white": "B2_AlphaBeta",
+    "black_discs": 1,
+    "white_discs": 63,
+    "disc_diff": -62,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 5
+  },
+  {
+    "black": "B0_Random",
+    "white": "B2_AlphaBeta",
+    "black_discs": 15,
+    "white_discs": 49,
+    "disc_diff": -34,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 6
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "B0_Random",
+    "black_discs": 63,
+    "white_discs": 1,
+    "disc_diff": 62,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 7
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "B0_Random",
+    "black_discs": 54,
+    "white_discs": 10,
+    "disc_diff": 44,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 8
+  },
+  {
+    "black": "B0_Random",
+    "white": "P3_YBWC_P8",
+    "black_discs": 5,
+    "white_discs": 59,
+    "disc_diff": -54,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 9
+  },
+  {
+    "black": "B0_Random",
+    "white": "P3_YBWC_P8",
+    "black_discs": 0,
+    "white_discs": 50,
+    "disc_diff": -50,
+    "winner": "P3_YBWC_P8",
+    "plies": 42,
+    "game_id": 10
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B0_Random",
+    "black_discs": 45,
+    "white_discs": 19,
+    "disc_diff": 26,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 11
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B0_Random",
+    "black_discs": 53,
+    "white_discs": 11,
+    "disc_diff": 42,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 12
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "B2_AlphaBeta",
+    "black_discs": 17,
+    "white_discs": 47,
+    "disc_diff": -30,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 13
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "B2_AlphaBeta",
+    "black_discs": 6,
+    "white_discs": 58,
+    "disc_diff": -52,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 14
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "B0_Greedy",
+    "black_discs": 62,
+    "white_discs": 2,
+    "disc_diff": 60,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 15
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "B0_Greedy",
+    "black_discs": 54,
+    "white_discs": 10,
+    "disc_diff": 44,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 16
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "P3_YBWC_P8",
+    "black_discs": 24,
+    "white_discs": 40,
+    "disc_diff": -16,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 17
+  },
+  {
+    "black": "B0_Greedy",
+    "white": "P3_YBWC_P8",
+    "black_discs": 6,
+    "white_discs": 58,
+    "disc_diff": -52,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 18
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B0_Greedy",
+    "black_discs": 61,
+    "white_discs": 2,
+    "disc_diff": 59,
+    "winner": "P3_YBWC_P8",
+    "plies": 55,
+    "game_id": 19
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B0_Greedy",
+    "black_discs": 49,
+    "white_discs": 15,
+    "disc_diff": 34,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 20
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "P3_YBWC_P8",
+    "black_discs": 23,
+    "white_discs": 41,
+    "disc_diff": -18,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 21
+  },
+  {
+    "black": "B2_AlphaBeta",
+    "white": "P3_YBWC_P8",
+    "black_discs": 47,
+    "white_discs": 17,
+    "disc_diff": 30,
+    "winner": "B2_AlphaBeta",
+    "plies": 56,
+    "game_id": 22
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B2_AlphaBeta",
+    "black_discs": 21,
+    "white_discs": 42,
+    "disc_diff": -21,
+    "winner": "B2_AlphaBeta",
+    "plies": 55,
+    "game_id": 23
+  },
+  {
+    "black": "P3_YBWC_P8",
+    "white": "B2_AlphaBeta",
+    "black_discs": 36,
+    "white_discs": 28,
+    "disc_diff": 8,
+    "winner": "P3_YBWC_P8",
+    "plies": 56,
+    "game_id": 24
+  }
+]

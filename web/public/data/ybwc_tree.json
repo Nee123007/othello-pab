@@ -1,0 +1,10 @@
+{
+  "root": { "label": "Root", "player": "MAX", "nodeType": "PV", "value": 5 },
+  "children": [
+    { "id": "A", "player": "MIN", "nodeType": "PV",  "leaves": [5, 7, 9], "result": "V = 5" },
+    { "id": "B", "player": "MIN", "nodeType": "CUT", "leaves": [3, 6, 8], "result": "V <= 3" },
+    { "id": "C", "player": "MIN", "nodeType": "CUT", "leaves": [4, 7, 9], "result": "V <= 4" }
+  ],
+  "workers": ["W1", "W2"]
+}
+

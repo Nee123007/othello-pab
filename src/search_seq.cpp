@@ -1,17 +1,27 @@
 #include "search_seq.hpp"
 #include "eval.hpp"
 #include "zobrist.hpp"
+#include "threadpool.hpp"
 #include <chrono>
 #include <algorithm>
 #include <cstring>
 
 namespace othello {
 
+std::atomic<bool> g_search_stop{false};
+
 namespace {
 
 // Internal recursive Negamax for B1 (Minimax without pruning)
 int negamax_b1_internal(Board board, int depth, SearchStats& stats, bool passed) {
+    if (g_search_stop.load(std::memory_order_relaxed)) {
+        return 0;
+    }
+
     stats.nodes.fetch_add(1, std::memory_order_relaxed);
+    if (t_thread_worker_id >= 0 && ThreadPool::active_pool()) {
+        ThreadPool::active_pool()->add_worker_nodes(t_thread_worker_id, 1);
+    }
 
     if (depth == 0 || board.is_terminal()) {
         return evaluate(board);
@@ -54,7 +64,14 @@ int negamax_b2_internal(Board board,
                         bool use_ordering,
                         OrderMode order_mode,
                         bool passed) {
+    if (g_search_stop.load(std::memory_order_relaxed)) {
+        return beta;
+    }
+
     stats.nodes.fetch_add(1, std::memory_order_relaxed);
+    if (t_thread_worker_id >= 0 && ThreadPool::active_pool()) {
+        ThreadPool::active_pool()->add_worker_nodes(t_thread_worker_id, 1);
+    }
 
     if (depth == 0 || board.is_terminal()) {
         return evaluate(board);
@@ -227,10 +244,13 @@ int search_b2_alphabeta(Board board,
 
     // Iterative Deepening from depth 1 to target depth
     for (int d = 1; d <= depth; ++d) {
+        if (g_search_stop.load(std::memory_order_relaxed)) break;
+
         int alpha = -INF;
         int beta = INF;
         int d_best_move = moves[0];
         int d_best_val = -INF;
+        bool aborted = false;
 
         // Order root moves, placing previous iteration's best move first
         if (use_ordering) {
@@ -238,9 +258,19 @@ int search_b2_alphabeta(Board board,
         }
 
         for (int sq : moves) {
+            if (g_search_stop.load(std::memory_order_relaxed)) {
+                aborted = true;
+                break;
+            }
+
             Board next = board;
             next.make_move(sq);
             int val = -negamax_b2_internal(next, d - 1, -beta, -alpha, tt, history, stats, use_tt, use_ordering, order_mode, false);
+
+            if (g_search_stop.load(std::memory_order_relaxed)) {
+                aborted = true;
+                break;
+            }
 
             if (val > d_best_val) {
                 d_best_val = val;
@@ -251,8 +281,13 @@ int search_b2_alphabeta(Board board,
             }
         }
 
+        if (aborted) break;
+
         overall_best_move = d_best_move;
         overall_best_val = d_best_val;
+        stats.depth = d;
+        stats.best_move = overall_best_move;
+        stats.value = overall_best_val;
 
         // Update root state in TT
         if (use_tt && tt) {

@@ -545,6 +545,62 @@ void test_p3_ybwc() {
     std::cout << "  P3 YBWC Verification: PASSED\n";
 }
 
+void test_phase_w1_extensions() {
+    std::cout << "[Test 15] Testing Phase W1 Extensions (JSON, Eval Breakdown, Stop Flag)...\n";
+
+    // 1. Legal moves from start position must be [19, 26, 37, 44]
+    Board start;
+    std::vector<int> legal = start.get_legal_moves_list();
+    assert(legal.size() == 4);
+    assert(legal[0] == 19 && legal[1] == 26 && legal[2] == 37 && legal[3] == 44);
+
+    // 2. Play 19 flips [27]
+    uint64_t flips_bb = start.compute_flips(19);
+    assert(flips_bb == (1ULL << 27));
+    std::vector<int> flips;
+    while (flips_bb) {
+        flips.push_back(__builtin_ctzll(flips_bb));
+        flips_bb &= flips_bb - 1;
+    }
+    assert(flips.size() == 1 && flips[0] == 27);
+
+    // 3. Eval breakdown sum equals evaluate() for start and played positions
+    EvalBreakdown eb_start = get_eval_breakdown(start);
+    int eval_start = evaluate(start);
+    assert(eb_start.total == eval_start);
+    assert(eb_start.mobility + eb_start.corners + eb_start.positional + eb_start.stability + eb_start.discs == eval_start);
+
+    Board b_played = start;
+    b_played.make_move(19);
+    EvalBreakdown eb_played = get_eval_breakdown(b_played);
+    int eval_played = evaluate(b_played);
+    assert(eb_played.total == eval_played);
+    assert(eb_played.mobility + eb_played.corners + eb_played.positional + eb_played.stability + eb_played.discs == eval_played);
+
+    // 4. Stop flag interrupts running search within 50 ms
+    g_search_stop.store(false, std::memory_order_release);
+    ThreadPool pool(4);
+    SearchStats stats;
+    std::thread search_th([&]() {
+        search_p3_ybwc(start, 14, pool, stats, nullptr, false, true, OrderMode::FULL);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    auto t_stop_start = std::chrono::steady_clock::now();
+    g_search_stop.store(true, std::memory_order_release);
+    search_th.join();
+    auto t_stop_end = std::chrono::steady_clock::now();
+    double stop_elapsed_ms = std::chrono::duration<double, std::milli>(t_stop_end - t_stop_start).count();
+    assert(stop_elapsed_ms < 50.0);
+    g_search_stop.store(false, std::memory_order_release);
+
+    std::cout << "  Start legal moves [19, 26, 37, 44]: OK\n";
+    std::cout << "  Move 19 flips [27]: OK\n";
+    std::cout << "  Eval breakdown matches evaluate(): OK (Total: " << eb_start.total << " == " << eval_start << ")\n";
+    std::cout << "  Search stop latency: " << std::fixed << std::setprecision(2) << stop_elapsed_ms << " ms (< 50 ms): OK\n";
+    std::cout << "  Phase W1 Verification: PASSED\n";
+}
+
 int main() {
     std::cout << "======================================================\n";
     std::cout << "  Parallel Alpha-Beta Othello Engine: Phase 1..7 Tests\n";
@@ -564,9 +620,10 @@ int main() {
     test_threadpool_and_p1_root_splitting();
     test_p2_pvs();
     test_p3_ybwc();
+    test_phase_w1_extensions();
 
     std::cout << "======================================================\n";
-    std::cout << "  ALL PHASE 1..7 UNIT TESTS PASSED (100% SUCCESS)      \n";
+    std::cout << "  ALL PHASE 1..7 + W1 UNIT TESTS PASSED (100% SUCCESS)\n";
     std::cout << "======================================================\n";
     return 0;
 }

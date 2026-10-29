@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #0B0D10;
+    color: #E8E4DA;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* 3-4% subtle noise texture + vignette */
+  body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  }
+
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 998;
+    background: radial-gradient(circle at 50% 35%, transparent 60%, rgba(0, 0, 0, 0.45) 100%);
+  }
+
+  /* Monospace numbers tabular */
+  .font-mono, [data-tabular] {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}
+
+/* Custom scrollbars matching theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0D10;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262D36;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D9A441;
+}
+
+/* Placement spring animation (220ms) */
+@keyframes discPlace {
+  0% {
+    transform: scale(1.15);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-disc-place {
+  animation: discPlace 220ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Legal Move Ring Breathe (2.4s) */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.42);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(0.48);
+    opacity: 0.85;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-disc-place,
+  .animate-breathe {
+    animation: none !important;
+  }
+}
+

@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENGINE_PATH=/app/build/othello
+      - MAX_GAMES=4
+    restart: unless-stopped
+

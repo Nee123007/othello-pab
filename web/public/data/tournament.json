@@ -1,0 +1,50 @@
+[
+  {
+    "contestant": "P3_YBWC_P8",
+    "games": 12,
+    "wins": 10,
+    "draws": 0,
+    "losses": 2,
+    "win_rate_pct": 83.33,
+    "mean_disc_diff": 25.67,
+    "ci_95": 16.43,
+    "ci_lower": 9.24,
+    "ci_upper": 42.1
+  },
+  {
+    "contestant": "B2_AlphaBeta",
+    "games": 12,
+    "wins": 10,
+    "draws": 0,
+    "losses": 2,
+    "win_rate_pct": 83.33,
+    "mean_disc_diff": 34.42,
+    "ci_95": 14.71,
+    "ci_lower": 19.71,
+    "ci_upper": 49.13
+  },
+  {
+    "contestant": "B0_Greedy",
+    "games": 12,
+    "wins": 4,
+    "draws": 0,
+    "losses": 8,
+    "win_rate_pct": 33.33,
+    "mean_disc_diff": -20.25,
+    "ci_95": 20.86,
+    "ci_lower": -41.11,
+    "ci_upper": 0.61
+  },
+  {
+    "contestant": "B0_Random",
+    "games": 12,
+    "wins": 0,
+    "draws": 0,
+    "losses": 12,
+    "win_rate_pct": 0.0,
+    "mean_disc_diff": -39.83,
+    "ci_95": 8.92,
+    "ci_lower": -48.75,
+    "ci_upper": -30.92
+  }
+]
