@@ -10,7 +10,6 @@ ROUTES = [
     ("lab", "http://127.0.0.1:5173/lab"),
     ("benchmarks", "http://127.0.0.1:5173/benchmarks"),
     ("about", "http://127.0.0.1:5173/about"),
-    ("styleguide", "http://127.0.0.1:5173/styleguide"),
 ]
 
 VIEWPORTS = [

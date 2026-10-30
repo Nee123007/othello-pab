@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
-import { StyleguidePage } from './pages/Styleguide';
 import { BoardDemoPage } from './pages/BoardDemo';
 import { PlayPage } from './pages/Play';
 import { LabPage } from './pages/Lab';
@@ -20,7 +19,6 @@ export const App: React.FC = () => {
             <Route path="/lab" element={<LabPage />} />
             <Route path="/benchmarks" element={<BenchmarksPage />} />
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/styleguide" element={<StyleguidePage />} />
             <Route path="/board-demo" element={<BoardDemoPage />} />
             <Route path="*" element={<Navigate to="/play" replace />} />
           </Routes>

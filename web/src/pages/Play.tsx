@@ -28,7 +28,6 @@ import {
   Pause,
   SkipForward,
   Bot,
-  User,
 } from 'lucide-react';
 import { sound } from '../lib/sound';
 import { LabPanel } from '../features/lab/LabPanel';
@@ -64,6 +63,7 @@ export const PlayPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'game' | 'search'>('game');
   const [newGameModalOpen, setNewGameModalOpen] = useState(false);
+  const [gameOverDismissed, setGameOverDismissed] = useState(false);
   const [muted, setMuted] = useState(sound.isMuted());
 
   // New game modal state
@@ -90,6 +90,12 @@ export const PlayPage: React.FC = () => {
     init();
   }, [init]);
 
+  useEffect(() => {
+    if (status !== 'gameover') {
+      setGameOverDismissed(false);
+    }
+  }, [status]);
+
   const toggleSound = () => {
     const next = !muted;
     sound.setMuted(next);
@@ -99,6 +105,7 @@ export const PlayPage: React.FC = () => {
   const isSpectator = config.matchMode === 'ai_vs_ai' || config.humanColor === 'none';
 
   const handleStartGameConfirm = () => {
+    setGameOverDismissed(false);
     if (chosenMode === 'ai_vs_ai') {
       startNewGame({
         matchMode: 'ai_vs_ai',
@@ -123,7 +130,7 @@ export const PlayPage: React.FC = () => {
     setNewGameModalOpen(false);
   };
 
-  const humanColor = config.humanColor === 'random' ? 'black' : config.humanColor;
+  const humanColor: DiscColor = config.humanColor === 'white' ? 'white' : 'black';
   const engineColor: DiscColor = humanColor === 'black' ? 'white' : 'black';
 
   // Compute average stats
@@ -374,6 +381,28 @@ export const PlayPage: React.FC = () => {
                   <Toast message="No legal moves available. Turn passed." type="info" />
                 )}
 
+                {/* Match Finished Banner when dialog is dismissed */}
+                {status === 'gameover' && gameOverDismissed && (
+                  <div className="p-3 bg-ink-950/80 border border-brass-400/40 rounded flex items-center justify-between shadow-sm">
+                    <div>
+                      <div className="text-xs font-semibold text-text-100 font-serif">
+                        Match Finished — {winner === 'draw' ? 'Draw' : `${winner?.toUpperCase()} Wins`}
+                      </div>
+                      <div className="text-[11px] font-mono text-text-400">
+                        Final Score: {score.black} - {score.white}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button size="sm" variant="secondary" onClick={() => setGameOverDismissed(false)}>
+                        Review Stats
+                      </Button>
+                      <Button size="sm" variant="primary" onClick={() => startNewGame()}>
+                        Rematch
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick Info Badge */}
                 <div className="p-3 bg-ink-800/40 border border-ink-700/60 rounded flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
@@ -507,22 +536,24 @@ export const PlayPage: React.FC = () => {
                   value={algoBlack}
                   onChange={(v) => setAlgoBlack(v as AlgorithmType)}
                 />
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <SegmentedControl
-                    size="sm"
-                    options={[
-                      { value: '1', label: '1T' },
-                      { value: '2', label: '2T' },
-                      { value: '4', label: '4T' },
-                    ]}
-                    value={String(threadsBlack)}
-                    onChange={(v) => setThreadsBlack(Number(v))}
-                  />
-                  <div className="flex items-center justify-between px-2 bg-ink-900 border border-ink-700 rounded text-xs font-mono">
-                    <span className="text-text-400">Depth:</span>
-                    <span>{depthBlack}</span>
-                  </div>
-                </div>
+                <SegmentedControl
+                  size="sm"
+                  options={[
+                    { value: '1', label: '1T' },
+                    { value: '2', label: '2T' },
+                    { value: '4', label: '4T' },
+                  ]}
+                  value={String(threadsBlack)}
+                  onChange={(v) => setThreadsBlack(Number(v))}
+                />
+                <Slider
+                  label="Black Depth"
+                  min={2}
+                  max={10}
+                  value={depthBlack}
+                  onChange={setDepthBlack}
+                  unit="plies"
+                />
               </div>
 
               {/* White Engine Config */}
@@ -542,22 +573,24 @@ export const PlayPage: React.FC = () => {
                   value={algoWhite}
                   onChange={(v) => setAlgoWhite(v as AlgorithmType)}
                 />
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <SegmentedControl
-                    size="sm"
-                    options={[
-                      { value: '1', label: '1T' },
-                      { value: '2', label: '2T' },
-                      { value: '4', label: '4T' },
-                    ]}
-                    value={String(threadsWhite)}
-                    onChange={(v) => setThreadsWhite(Number(v))}
-                  />
-                  <div className="flex items-center justify-between px-2 bg-ink-900 border border-ink-700 rounded text-xs font-mono">
-                    <span className="text-text-400">Depth:</span>
-                    <span>{depthWhite}</span>
-                  </div>
-                </div>
+                <SegmentedControl
+                  size="sm"
+                  options={[
+                    { value: '1', label: '1T' },
+                    { value: '2', label: '2T' },
+                    { value: '4', label: '4T' },
+                  ]}
+                  value={String(threadsWhite)}
+                  onChange={(v) => setThreadsWhite(Number(v))}
+                />
+                <Slider
+                  label="White Depth"
+                  min={2}
+                  max={10}
+                  value={depthWhite}
+                  onChange={setDepthWhite}
+                  unit="plies"
+                />
               </div>
 
               {/* Pacing Speed */}
@@ -583,13 +616,24 @@ export const PlayPage: React.FC = () => {
 
       {/* Game Over Dialog */}
       <Dialog
-        open={status === 'gameover'}
-        onClose={() => {}}
-        title={`Match Finished — ${winner ? winner.toUpperCase() : 'DRAW'}`}
+        open={status === 'gameover' && !gameOverDismissed}
+        onClose={() => setGameOverDismissed(true)}
+        title={`Match Finished — ${winner ? (winner === 'draw' ? 'DRAW' : `${winner.toUpperCase()} WINS`) : 'DRAW'}`}
         footer={
-          <Button variant="primary" onClick={() => startNewGame()}>
-            Play Rematch
-          </Button>
+          <div className="flex items-center justify-end gap-2 w-full">
+            <Button variant="ghost" onClick={() => setGameOverDismissed(true)}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setGameOverDismissed(false);
+                startNewGame();
+              }}
+            >
+              Play Rematch
+            </Button>
+          </div>
         }
       >
         <div className="space-y-4">

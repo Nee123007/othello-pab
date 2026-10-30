@@ -40,9 +40,6 @@ export const Navbar: React.FC = () => {
           <NavLink to="/about" className={navLinkClass}>
             About
           </NavLink>
-          <NavLink to="/styleguide" className={navLinkClass}>
-            Styleguide
-          </NavLink>
         </nav>
       </div>
     </header>

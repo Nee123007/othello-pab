@@ -44,7 +44,7 @@ export const LabPage: React.FC = () => {
     init();
   }, [init]);
 
-  const humanColor = config.humanColor === 'random' ? 'black' : config.humanColor;
+  const humanColor: DiscColor = config.humanColor === 'white' ? 'white' : 'black';
   const engineColor: DiscColor = humanColor === 'black' ? 'white' : 'black';
 
   const handleApplyConfig = () => {
