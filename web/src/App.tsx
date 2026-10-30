@@ -10,9 +10,9 @@ import { AboutPage } from './pages/About';
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <div className="min-h-screen flex flex-col bg-ink-950 text-text-100 font-sans selection:bg-brass-400/20 selection:text-brass-400">
+      <div className="min-h-screen w-full flex flex-col bg-ink-950 text-text-100 font-sans selection:bg-brass-400/20 selection:text-brass-400 overflow-x-hidden">
         <Navbar />
-        <main className="flex-1">
+        <main className="flex-1 w-full overflow-x-hidden">
           <Routes>
             <Route path="/" element={<Navigate to="/play" replace />} />
             <Route path="/play" element={<PlayPage />} />

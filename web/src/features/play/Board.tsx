@@ -55,7 +55,7 @@ export const Board: React.FC<BoardProps> = ({
 
   return (
     <div
-      className={`relative w-full max-w-[600px] aspect-square mx-auto p-4 sm:p-5 bg-jade-900 rounded-xl border border-jade-600/50 shadow-[0_12px_36px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(0,0,0,0.5)] flex flex-col ${className}`}
+      className={`relative w-full max-w-full sm:max-w-[600px] aspect-square mx-auto p-2 sm:p-5 bg-jade-900 rounded-xl border border-jade-600/50 shadow-[0_12px_36px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(0,0,0,0.5)] flex flex-col ${className}`}
     >
       {/* File coordinate labels (top) */}
       <div className="grid grid-cols-8 pb-1 text-center font-mono text-[11px] text-text-400/80 uppercase select-none">
@@ -104,7 +104,7 @@ export const Board: React.FC<BoardProps> = ({
                 onKeyDown={(e) => handleKeyDown(e, sq)}
                 onMouseEnter={() => setHoveredSq(sq)}
                 onMouseLeave={() => setHoveredSq(null)}
-                className={`relative w-full h-full bg-jade-700 flex items-center justify-center p-1 sm:p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-400 focus-visible:z-20 ${
+                className={`relative w-full h-full bg-jade-700 flex items-center justify-center p-0.5 sm:p-1.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brass-400 focus-visible:z-20 ${
                   isLegal && !disabled ? 'cursor-pointer hover:bg-jade-600/70' : 'cursor-default'
                 }`}
               >

@@ -12,7 +12,6 @@ import {
   Stat,
   Badge,
   IconButton,
-  Toast,
 } from '../design/components';
 import type { DiscColor, AlgorithmType, MatchMode } from '../lib/types';
 import {
@@ -142,7 +141,7 @@ export const PlayPage: React.FC = () => {
       : 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
       {/* Connection Lost Banner */}
       {connectionStatus === 'disconnected' && (
         <div className="mb-4 bg-danger/10 border border-danger/30 text-danger text-xs px-4 py-2.5 rounded-lg flex items-center justify-between shadow-sm">
@@ -157,9 +156,9 @@ export const PlayPage: React.FC = () => {
       )}
 
       {/* Main Grid: Board Area + Sidebar */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="w-full min-w-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
         {/* Left Column (Board & Player Cards) */}
-        <div className="lg:col-span-7 flex flex-col items-center space-y-3.5">
+        <div className="w-full min-w-0 lg:col-span-7 flex flex-col items-center space-y-3.5">
           {/* Top Player Card (White) */}
           <div className="w-full max-w-[560px]">
             {isSpectator ? (
@@ -184,7 +183,7 @@ export const PlayPage: React.FC = () => {
           </div>
 
           {/* 8x8 Board */}
-          <div className="w-full relative">
+          <div className="w-full max-w-[560px] min-w-0 relative">
             <Board
               discs={discs}
               turn={turn}
@@ -234,7 +233,7 @@ export const PlayPage: React.FC = () => {
         </div>
 
         {/* Right Column (Sidebar Tabs) */}
-        <div className="lg:col-span-5 w-full">
+        <div className="w-full min-w-0 lg:col-span-5">
           <Panel>
             {/* Sidebar Tab Header */}
             <div className="flex items-center justify-between border-b border-ink-700/80 pb-2 mb-4">
@@ -316,14 +315,27 @@ export const PlayPage: React.FC = () => {
                   >
                     New Game
                   </Button>
-                  <Button
-                    variant="secondary"
-                    icon={<RotateCcw className="w-4 h-4" />}
-                    disabled={moveHistory.length === 0 || isEngineThinking}
-                    onClick={requestUndo}
-                  >
-                    Undo
-                  </Button>
+                  {status === 'gameover' || status === 'passed' || (legalMoves.length === 0 && !isEngineThinking) ? (
+                    <Button
+                      variant="secondary"
+                      icon={<RotateCcw className="w-4 h-4" />}
+                      onClick={() => {
+                        setGameOverDismissed(false);
+                        startNewGame();
+                      }}
+                    >
+                      Restart Game
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      icon={<RotateCcw className="w-4 h-4" />}
+                      disabled={moveHistory.length === 0 || isEngineThinking}
+                      onClick={requestUndo}
+                    >
+                      Undo
+                    </Button>
+                  )}
                 </div>
 
                 {!isSpectator && (
@@ -376,9 +388,25 @@ export const PlayPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Status Notice */}
-                {status === 'passed' && (
-                  <Toast message="No legal moves available. Turn passed." type="info" />
+                {/* Status Notice: No Legal Moves Left / Turn Passed */}
+                {(status === 'passed' || (status === 'playing' && legalMoves.length === 0 && !isEngineThinking)) && (
+                  <div className="p-3 bg-ink-950/90 border border-brass-400/40 rounded-lg flex items-center justify-between gap-3 shadow-panel">
+                    <div className="flex items-center gap-2.5 text-xs text-text-100 min-w-0">
+                      <AlertTriangle className="w-4 h-4 text-brass-400 shrink-0" />
+                      <span className="truncate">No legal moves available. Turn passed.</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      icon={<RotateCcw className="w-3.5 h-3.5" />}
+                      onClick={() => {
+                        setGameOverDismissed(false);
+                        startNewGame();
+                      }}
+                    >
+                      Restart Game
+                    </Button>
+                  </div>
                 )}
 
                 {/* Match Finished Banner when dialog is dismissed */}
@@ -396,8 +424,16 @@ export const PlayPage: React.FC = () => {
                       <Button size="sm" variant="secondary" onClick={() => setGameOverDismissed(false)}>
                         Review Stats
                       </Button>
-                      <Button size="sm" variant="primary" onClick={() => startNewGame()}>
-                        Rematch
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon={<RotateCcw className="w-3.5 h-3.5" />}
+                        onClick={() => {
+                          setGameOverDismissed(false);
+                          startNewGame();
+                        }}
+                      >
+                        Restart Game
                       </Button>
                     </div>
                   </div>
@@ -626,12 +662,13 @@ export const PlayPage: React.FC = () => {
             </Button>
             <Button
               variant="primary"
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
               onClick={() => {
                 setGameOverDismissed(false);
                 startNewGame();
               }}
             >
-              Play Rematch
+              Restart Game
             </Button>
           </div>
         }

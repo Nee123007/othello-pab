@@ -66,6 +66,15 @@
   background: #D9A441;
 }
 
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Placement spring animation (220ms) */
 @keyframes discPlace {
   0% {
