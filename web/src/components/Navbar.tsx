@@ -27,9 +27,12 @@ export const Navbar: React.FC = () => {
         </NavLink>
 
         {/* Navigation Items - full height flex without scrollbars */}
-        <nav className="h-full flex items-center gap-3 sm:gap-6 md:gap-8">
+        <nav className="h-full flex items-center gap-2 sm:gap-5 md:gap-8">
           <NavLink to="/play" className={navLinkClass}>
             Play
+          </NavLink>
+          <NavLink to="/tree" className={navLinkClass}>
+            Tree
           </NavLink>
           <NavLink to="/lab" className={navLinkClass}>
             Lab

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { BoardDemoPage } from './pages/BoardDemo';
 import { PlayPage } from './pages/Play';
+import { TreePage } from './pages/Tree';
 import { LabPage } from './pages/Lab';
 import { BenchmarksPage } from './pages/Benchmarks';
 import { AboutPage } from './pages/About';
@@ -16,6 +17,7 @@ export const App: React.FC = () => {
           <Routes>
             <Route path="/" element={<Navigate to="/play" replace />} />
             <Route path="/play" element={<PlayPage />} />
+            <Route path="/tree" element={<TreePage />} />
             <Route path="/lab" element={<LabPage />} />
             <Route path="/benchmarks" element={<BenchmarksPage />} />
             <Route path="/about" element={<AboutPage />} />
