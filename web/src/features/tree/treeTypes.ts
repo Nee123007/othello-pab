@@ -47,3 +47,4 @@ export interface TreePreset {
   defaultDepth: number;
   defaultThreads: number;
 }
+
