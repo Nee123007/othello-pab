@@ -7,6 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field, ValidationError
 
 from .engine_proc import EngineProcess
@@ -361,7 +363,24 @@ async def websocket_endpoint(websocket: WebSocket):
         async with active_games_lock:
             active_games -= 1
 
-# Mount static frontend files if built
+# Mount static frontend files with SPA routing fallback (HTML5 history)
 web_dist_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "web", "dist"))
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    fav_svg = os.path.join(web_dist_dir, "favicon.svg")
+    if os.path.isfile(fav_svg):
+        return FileResponse(fav_svg, media_type="image/svg+xml")
+    return Response(status_code=204)
+
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as ex:
+            if ex.status_code == 404:
+                return await super().get_response("index.html", scope)
+            raise ex
+
 if os.path.isdir(web_dist_dir):
-    app.mount("/", StaticFiles(directory=web_dist_dir, html=True), name="static")
+    app.mount("/", SPAStaticFiles(directory=web_dist_dir, html=True), name="static")

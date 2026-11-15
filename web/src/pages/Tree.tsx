@@ -1,21 +1,67 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useGameStore } from '../lib/store';
-import type { AlgorithmType, DiscColor } from '../lib/types';
+import type { AlgorithmType, DiscColor, GameConfig } from '../lib/types';
 import type { TreePresetId, SearchTreeNode } from '../features/tree/treeTypes';
 import {
   TREE_PRESETS,
   getPresetBoard,
   buildSearchTree,
+  reconstructBoardAtMove,
 } from '../features/tree/treeGenerator';
 import { SearchTreeView } from '../features/tree/SearchTreeView';
 import { TreeInspector } from '../features/tree/TreeInspector';
-import { TreeControls } from '../features/tree/TreeControls';
-import { GitFork } from 'lucide-react';
+import {
+  TreeControls,
+  type DetectedSettingsInfo,
+} from '../features/tree/TreeControls';
+import { GitFork, Activity, CheckCircle2 } from 'lucide-react';
+import { Badge } from '../design/components';
+
+function detectTurnSettings(
+  turn: DiscColor,
+  config: GameConfig,
+  isGameOver: boolean
+): DetectedSettingsInfo {
+  if (config.matchMode === 'ai_vs_ai') {
+    if (turn === 'black') {
+      return {
+        algo: (config.algoBlack || config.algo || 'p3') as AlgorithmType,
+        threads: config.threadsBlack || config.threads || 4,
+        depth: 2,
+        playerLabel: 'AI Black',
+        isGameOver,
+        turn,
+      };
+    } else {
+      return {
+        algo: (config.algoWhite || config.algo || 'b2') as AlgorithmType,
+        threads: config.threadsWhite || config.threads || 1,
+        depth: 2,
+        playerLabel: 'AI White',
+        isGameOver,
+        turn,
+      };
+    }
+  } else {
+    const isHuman = config.humanColor === turn;
+    return {
+      algo: (config.algo || 'p3') as AlgorithmType,
+      threads: config.threads || 4,
+      depth: 2,
+      playerLabel: isHuman ? `Human (${turn})` : `AI Engine (${turn})`,
+      isGameOver,
+      turn,
+    };
+  }
+}
 
 export const TreePage: React.FC = () => {
   const store = useGameStore();
 
   const [selectedPreset, setSelectedPreset] = useState<TreePresetId>('standard');
+  const [isLiveSync, setIsLiveSync] = useState<boolean>(false);
+  const [selectedMoveIndex, setSelectedMoveIndex] = useState<number>(-1);
+
   const [algo, setAlgo] = useState<AlgorithmType>('b2');
   const [depth, setDepth] = useState<number>(2);
   const [threads, setThreads] = useState<number>(4);
@@ -26,7 +72,120 @@ export const TreePage: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
-  // Generate tree
+  // Compute detected settings info for active game
+  const detectedInfo = useMemo<DetectedSettingsInfo | null>(() => {
+    if (!isLiveSync) return null;
+    return detectTurnSettings(
+      turn,
+      store.config,
+      store.status === 'gameover'
+    );
+  }, [isLiveSync, turn, store.config, store.status]);
+
+  // Handle Preset Selection
+  const handleSelectPreset = (presetId: TreePresetId) => {
+    if (presetId === 'live_game') {
+      handleToggleLiveSync();
+      return;
+    }
+    setIsLiveSync(false);
+    setSelectedMoveIndex(-1);
+    setSelectedPreset(presetId);
+    const preset = TREE_PRESETS.find((p) => p.id === presetId);
+    if (preset) {
+      setAlgo(preset.defaultAlgo);
+      setDepth(preset.defaultDepth);
+      setThreads(preset.defaultThreads);
+      setBoard(getPresetBoard(presetId));
+      setTurn('black');
+    }
+  };
+
+  // Toggle or Activate Live Match Tracking
+  const handleToggleLiveSync = () => {
+    if (!isLiveSync) {
+      setIsLiveSync(true);
+      setSelectedPreset('live_game');
+      setSelectedMoveIndex(-1);
+
+      if (store.discs && store.discs.some((d) => d !== null)) {
+        setBoard([...store.discs]);
+        setTurn(store.turn);
+        const detected = detectTurnSettings(
+          store.turn,
+          store.config,
+          store.status === 'gameover'
+        );
+        setAlgo(detected.algo);
+        setThreads(detected.threads);
+      }
+    } else {
+      // Disconnecting live sync preserves current board as a static snapshot
+      setIsLiveSync(false);
+    }
+  };
+
+  // Synchronize dynamically with live match as moves occur
+  useEffect(() => {
+    if (!isLiveSync) return;
+    if (selectedMoveIndex !== -1) return; // User is inspecting a past move
+
+    if (store.discs && store.discs.some((d) => d !== null)) {
+      setBoard([...store.discs]);
+      setTurn(store.turn);
+
+      // Auto-detect settings for the active turn
+      const detected = detectTurnSettings(
+        store.turn,
+        store.config,
+        store.status === 'gameover'
+      );
+      setAlgo(detected.algo);
+      setThreads(detected.threads);
+    }
+  }, [
+    isLiveSync,
+    selectedMoveIndex,
+    store.discs,
+    store.turn,
+    store.lastMove,
+    store.status,
+    store.config,
+    store.moveHistory.length,
+  ]);
+
+  // Handle inspecting specific ply from match history
+  const handleSelectMoveIndex = (idx: number) => {
+    setSelectedMoveIndex(idx);
+    if (idx === -1) {
+      // Return to live latest state
+      if (store.discs && store.discs.some((d) => d !== null)) {
+        setBoard([...store.discs]);
+        setTurn(store.turn);
+        const detected = detectTurnSettings(
+          store.turn,
+          store.config,
+          store.status === 'gameover'
+        );
+        setAlgo(detected.algo);
+        setThreads(detected.threads);
+      }
+    } else {
+      // Reconstruct board at historical ply
+      const state = reconstructBoardAtMove(store.moveHistory, idx);
+      setBoard(state.board);
+      setTurn(state.turn);
+      const detected = detectTurnSettings(
+        state.turn,
+        store.config,
+        false
+      );
+      setAlgo(detected.algo);
+      setThreads(detected.threads);
+    }
+  };
+
+  // Generate tree dynamically
   const { root, metrics, allNodes } = useMemo(() => {
     return buildSearchTree(board, turn, algo, depth, threads);
   }, [board, turn, algo, depth, threads]);
@@ -51,7 +210,6 @@ export const TreePage: React.FC = () => {
           return prev;
         }
         const next = prev + 1;
-        // Find node matching step and highlight
         const activeNode = allNodes.find((n) => n.stepOrder === next);
         if (activeNode) setSelectedNode(activeNode);
         return next;
@@ -60,27 +218,6 @@ export const TreePage: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [isPlaying, maxStep, allNodes]);
-
-  // Handle Preset Selection
-  const handleSelectPreset = (presetId: TreePresetId) => {
-    setSelectedPreset(presetId);
-    const preset = TREE_PRESETS.find((p) => p.id === presetId);
-    if (preset) {
-      setAlgo(preset.defaultAlgo);
-      setDepth(preset.defaultDepth);
-      setThreads(preset.defaultThreads);
-      setBoard(getPresetBoard(presetId));
-      setTurn('black');
-    }
-  };
-
-  // Load from Live Game
-  const handleUseCurrentMatchBoard = () => {
-    if (store.discs && store.discs.some((d) => d !== null)) {
-      setBoard([...store.discs]);
-      setTurn(store.turn);
-    }
-  };
 
   const handleStepForward = useCallback(() => {
     setCurrentStep((prev) => {
@@ -111,10 +248,27 @@ export const TreePage: React.FC = () => {
       {/* Page Title & Intro */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-ink-700/80 pb-4">
         <div>
-          <h1 className="font-serif text-2xl font-bold tracking-tight text-text-100 flex items-center gap-2.5">
-            <GitFork className="w-6 h-6 text-brass-400" />
-            Algorithm Search Tree
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="font-serif text-2xl font-bold tracking-tight text-text-100 flex items-center gap-2.5">
+              <GitFork className="w-6 h-6 text-brass-400" />
+              Algorithm Search Tree
+            </h1>
+            {isLiveSync && (
+              <Badge variant={store.status === 'gameover' ? 'brass' : 'signal'}>
+                {store.status === 'gameover' ? (
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-brass-400" />
+                    Match Preserved
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1">
+                    <Activity className="w-3 h-3 text-signal animate-pulse" />
+                    Live Game Synced
+                  </span>
+                )}
+              </Badge>
+            )}
+          </div>
           <p className="text-xs text-text-400 mt-1 max-w-2xl font-sans">
             Explore the negamax game tree generated by Sequential Alpha-Beta (B2), Root Splitting (P1),
             Principal Variation Splitting (P2), and Young Brothers Wait Concept (P3).
@@ -140,7 +294,13 @@ export const TreePage: React.FC = () => {
         onChangeThreads={setThreads}
         selectedPreset={selectedPreset}
         onSelectPreset={handleSelectPreset}
-        onUseCurrentMatchBoard={handleUseCurrentMatchBoard}
+        onUseCurrentMatchBoard={handleToggleLiveSync}
+        isLiveSync={isLiveSync}
+        onToggleLiveSync={handleToggleLiveSync}
+        detectedInfo={detectedInfo}
+        moveHistory={store.moveHistory}
+        selectedMoveIndex={selectedMoveIndex}
+        onSelectMoveIndex={handleSelectMoveIndex}
         isPlaying={isPlaying}
         onTogglePlay={() => setIsPlaying((p) => !p)}
         onStepForward={handleStepForward}

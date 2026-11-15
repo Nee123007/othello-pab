@@ -37,7 +37,12 @@ export interface TreeMetrics {
   pvMoves: string[];
 }
 
-export type TreePresetId = 'standard' | 'cutoff_demo' | 'ybwc_stealing' | 'root_splitting';
+export type TreePresetId =
+  | 'standard'
+  | 'cutoff_demo'
+  | 'ybwc_stealing'
+  | 'root_splitting'
+  | 'live_game';
 
 export interface TreePreset {
   id: TreePresetId;

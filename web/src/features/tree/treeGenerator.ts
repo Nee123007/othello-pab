@@ -151,6 +151,23 @@ export function getPresetBoard(presetId: TreePresetId): (DiscColor | null)[] {
   return b;
 }
 
+export function reconstructBoardAtMove(
+  moveHistory: Array<{ sq: number; color: DiscColor }>,
+  targetIndex: number
+): { board: (DiscColor | null)[]; turn: DiscColor } {
+  let b = getInitialBoard();
+  let nextTurn: DiscColor = 'black';
+  const limit = Math.min(targetIndex, moveHistory.length - 1);
+
+  for (let i = 0; i <= limit; i++) {
+    const move = moveHistory[i];
+    b = applyMove(b, move.sq, move.color);
+    nextTurn = move.color === 'black' ? 'white' : 'black';
+  }
+
+  return { board: b, turn: nextTurn };
+}
+
 interface TreeBuildContext {
   algo: AlgorithmType;
   maxDepth: number;
